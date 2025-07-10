@@ -1,0 +1,23 @@
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+
+test/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+dist/
+build/
+coverage/
