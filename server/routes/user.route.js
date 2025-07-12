@@ -5,9 +5,11 @@ const postController = require('../controllers/post.controller');
 const { isAuthenticated } = require('../middleware/auth.middleware');
 const { upload } = require('../middleware/cloudinary.middleware');
 
+
 // Specific routes must come before parameterized routes
 router.get('/me', isAuthenticated, userController.getMe);
-router.get('/search', userController.searchUsers);
+// GET /api/users/search?q=...
+router.get("/search", isAuthenticated, userController.searchUsers);
 router.get('/', userController.getAllUsers);
 
 // Parameterized routes

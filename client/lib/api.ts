@@ -122,6 +122,10 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
           // If we can't parse the error response, use the default message
         }
 
+        // Only log errors that are not 401 or 403 Unauthorized/Forbidden
+        if (response.status !== 401 && response.status !== 403) {
+          console.error(`API request failed for ${url}:`, errorMessage)
+        }
         throw new ApiError(errorMessage, response.status, errorCode)
       }
 
@@ -129,7 +133,10 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       console.log(`API response data:`, data)
       return data
     } catch (error) {
-      console.error(`API request failed for ${url}:`, error)
+      // Only log errors that are not 401 or 403 Unauthorized/Forbidden
+      if (!(error instanceof ApiError && (error.status === 401 || error.status === 403))) {
+        console.error(`API request failed for ${url}:`, error)
+      }
 
       if (error instanceof ApiError) {
         throw error

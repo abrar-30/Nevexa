@@ -2,22 +2,22 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+import { getCurrentUser } from "@/lib/auth-api"
 
 export default function HomePage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Check if user is authenticated (you can implement proper auth check here)
     const checkAuth = async () => {
-      // For now, always redirect to dashboard
-      // In a real app, you'd check authentication status here
-      router.replace("/dashboard")
+      const user = await getCurrentUser()
+      if (user) {
+        router.replace("/dashboard")
+      } else {
+        router.replace("/auth/login")
+      }
     }
     checkAuth()
   }, [router])
 
-  // No loading UI, just return null
   return null
 }

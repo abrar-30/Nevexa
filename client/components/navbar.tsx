@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Home, Users, MessageCircle, User, LogOut, Settings, Shield } from "lucide-react"
+import { getCurrentUser } from "@/lib/auth-api";
 
 interface NavbarProps {
   userRole?: "general" | "admin"
@@ -24,8 +25,18 @@ interface NavbarProps {
   }
 }
 
-export function Navbar({ userRole = "general", user }: NavbarProps) {
-  const pathname = usePathname()
+export function Navbar({ userRole = "general" }: NavbarProps) {
+  const pathname = usePathname();
+  const [user, setUser] = useState<NavbarProps["user"] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    getCurrentUser()
+      .then(u => setUser(u))
+      .finally(() => setLoading(false));
+  }, []);
+
   // Remove mock unread message count
 
   const navItems = [
@@ -76,17 +87,23 @@ export function Navbar({ userRole = "general", user }: NavbarProps) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name} />
-                  <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                  {loading ? (
+                    <div className="w-8 h-8 flex items-center justify-center text-xs text-gray-400">...</div>
+                  ) : (
+                    <>
+                      <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name} />
+                      <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                    </>
+                  )}
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <div className="flex items-center justify-start gap-2 p-2">
                 <div className="flex flex-col space-y-1 leading-none">
-                  <p className="font-medium">{user?.name || "Guest"}</p>
+                  <p className="font-medium">{loading ? "Loading..." : user?.name || "Guest"}</p>
                   <p className="w-[200px] truncate text-sm text-muted-foreground">
-                    {user?.email || "Not logged in"}
+                    {loading ? "" : user?.email || "Not logged in"}
                   </p>
                 </div>
               </div>

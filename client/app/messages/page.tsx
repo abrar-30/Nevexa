@@ -1,538 +1,466 @@
-"use client"
+"use client";
 
-import type React from "react"
+import React, { useState, useEffect, useRef } from "react";
+import { X, Menu, ArrowLeft } from "lucide-react";
+import { API_BASE_URL } from "@/lib/api";
+import { getCurrentUser } from "@/lib/auth-api";
+import { Navbar } from "@/components/navbar";
+import { MobileNavigation } from "@/components/mobile-navigation";
+import { io, Socket } from "socket.io-client";
+import { useSearchParams } from "next/navigation";
 
-import { useState, useEffect } from "react"
-import { Navbar } from "@/components/navbar"
-import { MobileNavigation } from "@/components/mobile-navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Search, Send, MoreHorizontal, Phone, Video, ArrowLeft } from "lucide-react"
-import { useSearchParams } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
 
 interface Message {
-  id: string
-  content: string
-  senderId: string
-  timestamp: string
-  read: boolean
+  id: string;
+  content: string;
+  senderId: string;
+  timestamp: string;
+  read: boolean;
 }
 
 interface Conversation {
-  id: string
+  id: string;
   user: {
-    id: string
-    name: string
-    avatar?: string
-    isOnline: boolean
-    lastSeen?: string
-  }
+    id: string;
+    name: string;
+    avatar?: string;
+  };
   lastMessage: {
-    content: string
-    timestamp: string
-    senderId: string
-  }
-  unreadCount: number
-  messages: Message[]
-}
-
-// Mock API functions - replace with actual API calls
-const fetchConversations = async (): Promise<Conversation[]> => {
-  try {
-    const response = await fetch("http://localhost:5000/api/conversations", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error("API not available")
-    }
-
-    const data = await response.json()
-    return data.conversations || []
-  } catch (error) {
-    console.warn("API not available, using mock data:", error)
-
-    // Return mock conversations when API is not available
-    return [
-      {
-        id: "conv1",
-        user: {
-          id: "user1",
-          name: "Alice Johnson",
-          avatar: "/placeholder.svg?height=40&width=40",
-          isOnline: true,
-        },
-        lastMessage: {
-          content: "Hey! How are you doing?",
-          timestamp: "2024-01-15T10:30:00Z",
-          senderId: "user1",
-        },
-        unreadCount: 2,
-        messages: [
-          {
-            id: "msg1",
-            content: "Hey! How are you doing?",
-            senderId: "user1",
-            timestamp: "2024-01-15T10:30:00Z",
-            read: false,
-          },
-          {
-            id: "msg2",
-            content: "I'm doing great! Thanks for asking. How about you?",
-            senderId: "currentUser",
-            timestamp: "2024-01-15T10:35:00Z",
-            read: true,
-          },
-          {
-            id: "msg3",
-            content: "That's awesome! I'm doing well too. Working on some exciting projects.",
-            senderId: "user1",
-            timestamp: "2024-01-15T10:40:00Z",
-            read: false,
-          },
-        ],
-      },
-      {
-        id: "conv2",
-        user: {
-          id: "user2",
-          name: "Bob Smith",
-          avatar: "/placeholder.svg?height=40&width=40",
-          isOnline: false,
-          lastSeen: "2024-01-15T09:00:00Z",
-        },
-        lastMessage: {
-          content: "Thanks for sharing that article!",
-          timestamp: "2024-01-15T09:00:00Z",
-          senderId: "currentUser",
-        },
-        unreadCount: 0,
-        messages: [
-          {
-            id: "msg4",
-            content: "Did you see that new article about AI?",
-            senderId: "user2",
-            timestamp: "2024-01-15T08:45:00Z",
-            read: true,
-          },
-          {
-            id: "msg5",
-            content: "Thanks for sharing that article!",
-            senderId: "currentUser",
-            timestamp: "2024-01-15T09:00:00Z",
-            read: true,
-          },
-        ],
-      },
-      {
-        id: "conv3",
-        user: {
-          id: "user3",
-          name: "Charlie Brown",
-          avatar: "/placeholder.svg?height=40&width=40",
-          isOnline: true,
-        },
-        lastMessage: {
-          content: "Let's catch up soon!",
-          timestamp: "2024-01-14T18:00:00Z",
-          senderId: "user3",
-        },
-        unreadCount: 1,
-        messages: [
-          {
-            id: "msg6",
-            content: "Let's catch up soon!",
-            senderId: "user3",
-            timestamp: "2024-01-14T18:00:00Z",
-            read: false,
-          },
-        ],
-      },
-    ]
-  }
-}
-
-const sendMessage = async (conversationId: string, content: string): Promise<Message> => {
-  try {
-    const response = await fetch(`http://localhost:5000/api/conversations/${conversationId}/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ content }),
-    })
-
-    if (!response.ok) {
-      throw new Error("API not available")
-    }
-
-    const data = await response.json()
-    return data.message
-  } catch (error) {
-    console.warn("API not available, simulating message:", error)
-
-    // Return mock message when API is not available
-    return {
-      id: Date.now().toString(),
-      content,
-      senderId: "currentUser",
-      timestamp: new Date().toISOString(),
-      read: true,
-    }
-  }
-}
-
-const getCurrentUser = async () => {
-  const response = await fetch("http://localhost:5000/api/users/me", {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-  })
-
-  if (!response.ok) {
-    throw new Error("Failed to get current user")
-  }
-
-  const data = await response.json()
-  return data.user || data
+    content: string;
+    timestamp: string;
+    senderId: string;
+  };
+  messages: Message[];
 }
 
 export default function MessagesPage() {
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const [newMessage, setNewMessage] = useState("")
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSending, setIsSending] = useState(false)
-  const [showMobileChat, setShowMobileChat] = useState(false)
-  const searchParams = useSearchParams()
-  const { toast } = useToast()
-
-  const loadConversations = async () => {
-    try {
-      const [fetchedConversations, user] = await Promise.all([fetchConversations(), getCurrentUser()])
-
-      setConversations(fetchedConversations)
-      setCurrentUser(user)
-
-      // Auto-select conversation if user parameter is provided
-      const userId = searchParams.get("user")
-      if (userId) {
-        const conversation = fetchedConversations.find((conv) => conv.user.id === userId)
-        if (conversation) {
-          handleConversationSelect(conversation)
-        }
-      }
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to load conversations. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [messageInput, setMessageInput] = useState("");
+  const socketRef = useRef<Socket | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  // State for how many messages to show
+  const [visibleMsgCount, setVisibleMsgCount] = useState(0);
+  const chatWindowRef = useRef<HTMLDivElement>(null);
+  const AVG_MSG_HEIGHT = 48; // px, adjust as needed
+  // Mobile sidebar toggle
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Mobile chat state
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    loadConversations()
-  }, [searchParams])
+    (async () => {
+      try {
+        const user = await getCurrentUser();
+        setCurrentUser(user);
+      } catch (err) {
+        setCurrentUser(null);
+      } finally {
+        setUserLoading(false);
+      }
+    })();
+  }, []);
 
-  const filteredConversations = conversations.filter((conv) =>
-    conv.user.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  useEffect(() => {
+    if (!currentUser) return;
+    setConversationsLoading(true);
+    fetch(`${API_BASE_URL}/chat/conversations`, { credentials: "include" })
+      .then(res => res.json())
+      .then(data => setConversations(data.conversations || []))
+      .finally(() => setConversationsLoading(false));
+  }, [currentUser]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newMessage.trim() || !selectedConversation || isSending) return
-
-    setIsSending(true)
-
-    try {
-      const message = await sendMessage(selectedConversation.id, newMessage)
-
-      // Update conversations
-      setConversations(
-        conversations.map((conv) => {
-          if (conv.id === selectedConversation.id) {
-            return {
-              ...conv,
-              messages: [...conv.messages, message],
-              lastMessage: {
-                content: newMessage,
-                timestamp: message.timestamp,
-                senderId: currentUser?.id || "currentUser",
-              },
-            }
-          }
-          return conv
-        }),
-      )
-
-      // Update selected conversation
-      setSelectedConversation({
-        ...selectedConversation,
-        messages: [...selectedConversation.messages, message],
-        lastMessage: {
-          content: newMessage,
-          timestamp: message.timestamp,
-          senderId: currentUser?.id || "currentUser",
-        },
-      })
-
-      setNewMessage("")
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSending(false)
+  useEffect(() => {
+    if (!search) {
+      setResults([]);
+      setShowDropdown(false);
+      return;
     }
-  }
+    setLoading(true);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      fetch(`${API_BASE_URL}/users/search?q=${encodeURIComponent(search)}`, { credentials: "include" })
+        .then(res => res.json())
+        .then(data => {
+          setResults(data.users || []);
+          setShowDropdown(true);
+        })
+        .catch(() => setResults([]))
+        .finally(() => setLoading(false));
+    }, 300);
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, [search]);
 
-  const handleConversationSelect = (conversation: Conversation) => {
-    setSelectedConversation(conversation)
-    setShowMobileChat(true)
-
-    // Mark messages as read
-    if (conversation.unreadCount > 0) {
-      setConversations(conversations.map((conv) => (conv.id === conversation.id ? { ...conv, unreadCount: 0 } : conv)))
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (inputRef.current && !inputRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
     }
-  }
+    if (showDropdown) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showDropdown]);
 
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-
-    if (diffInHours < 24) {
-      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  // Handle selecting a user from search or sidebar
+  const handleUserSelect = (user: User | { id: string; name: string; avatar?: string }) => {
+    setShowDropdown(false);
+    setSearch("");
+    const userId = (user as any).id || (user as any)._id;
+    const userName = (user as any).name;
+    const userAvatar = (user as any).avatar;
+    // Always create a new conversation if it doesn't exist
+    let conv = conversations.find(c => c.user.id === userId);
+    if (!conv) {
+      const newConv = {
+        id: userId,
+        user: { id: userId, name: userName, avatar: userAvatar },
+        lastMessage: { content: "", timestamp: "", senderId: "" },
+        messages: []
+      };
+      setConversations(prev => {
+        const updated = [newConv, ...prev.filter(c => c.user.id !== userId)];
+        setTimeout(() => {
+          setSelectedConversation(updated[0]);
+          if (window.innerWidth < 768) setMobileChatOpen(true);
+        }, 0);
+        return updated;
+      });
     } else {
-      return date.toLocaleDateString()
+      setSelectedConversation(conv);
+      if (window.innerWidth < 768) setMobileChatOpen(true);
     }
+  };
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const socketUrl = API_BASE_URL.replace(/\/api$/, "");
+    const socket = io(socketUrl, { transports: ["websocket"], withCredentials: true });
+    socketRef.current = socket;
+    socket.emit("join", String(currentUser._id));
+
+    socket.on("receive-message", (msg) => {
+      setConversations(prevConvs => {
+        const idx = prevConvs.findIndex(c => c.user.id === msg.sender || c.user.id === msg.receiver);
+        if (selectedConversation && (selectedConversation.user.id === msg.sender || selectedConversation.user.id === msg.receiver)) {
+          setSelectedConversation(prev => prev ? {
+            ...prev,
+            messages: [...prev.messages, {
+              id: msg._id,
+              content: msg.content,
+              senderId: msg.sender,
+              timestamp: msg.timestamp,
+              read: true
+            }]
+          } : prev);
+        }
+        if (idx !== -1) {
+          const updated = [...prevConvs];
+          updated[idx] = {
+            ...updated[idx],
+            messages: [...updated[idx].messages, {
+              id: msg._id,
+              content: msg.content,
+              senderId: msg.sender,
+              timestamp: msg.timestamp,
+              read: true
+            }],
+            lastMessage: {
+              content: msg.content,
+              timestamp: msg.timestamp,
+              senderId: msg.sender
+            }
+          };
+          return updated;
+        }
+        return prevConvs;
+      });
+    });
+
+    return () => { socket.disconnect(); };
+  }, [currentUser, selectedConversation]);
+
+  useEffect(() => {
+    // If ?user= is present, open chat with that user
+    const userId = searchParams.get("user");
+    if (userId && currentUser && !userLoading) {
+      // Check if conversation already exists
+      let conv = conversations.find(c => c.user.id === userId);
+      if (conv) {
+        setSelectedConversation(conv);
+        if (window.innerWidth < 768) setMobileChatOpen(true);
+      } else {
+        // Fetch user info if not in conversations
+        fetch(`${API_BASE_URL}/users/${userId}`, { credentials: "include" })
+          .then(res => res.json())
+          .then(data => {
+            if (data.user) {
+              handleUserSelect({ id: data.user._id, name: data.user.name, avatar: data.user.avatar });
+            }
+          });
+      }
+    }
+    // Only run when conversations, currentUser, or userLoading changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, conversations, currentUser, userLoading]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [selectedConversation?.messages]);
+
+  // Handler to load more messages on scroll up
+  const handleChatScroll = () => {
+    if (!chatWindowRef.current) return;
+    if (chatWindowRef.current.scrollTop === 0) {
+      // At top, load more messages if available
+      setVisibleMsgCount((prev) => {
+        const total = selectedConversation?.messages.length || 0;
+        return Math.min(prev + 10, total);
+      });
+    }
+  };
+
+  // Set initial visibleMsgCount based on chat window height
+  useEffect(() => {
+    if (!chatWindowRef.current || !selectedConversation) return;
+    const chatHeight = chatWindowRef.current.clientHeight;
+    const total = selectedConversation.messages.length;
+    const fitCount = Math.max(1, Math.floor((chatHeight * 0.5) / AVG_MSG_HEIGHT));
+    setVisibleMsgCount(Math.min(fitCount, total));
+  }, [selectedConversation?.id]);
+
+  const handleSendMessage = () => {
+    if (!messageInput.trim() || !selectedConversation || !currentUser) return;
+    const receiverId = selectedConversation.user.id;
+    const msg = {
+      sender: currentUser._id,
+      receiver: receiverId,
+      content: messageInput.trim()
+    };
+    socketRef.current?.emit("send-message", msg);
+    const newMsg = {
+      id: Date.now().toString(),
+      content: messageInput.trim(),
+      senderId: currentUser._id,
+      timestamp: new Date().toISOString(),
+      read: true
+    };
+    setSelectedConversation(prev => prev ? {
+      ...prev,
+      messages: [...prev.messages, newMsg],
+      lastMessage: {
+        content: newMsg.content,
+        timestamp: newMsg.timestamp,
+        senderId: newMsg.senderId
+      }
+    } : prev);
+    // If this conversation is not in the sidebar, add it
+    setConversations(prev => {
+      const exists = prev.some(c => c.user.id === receiverId);
+      if (exists) {
+        // Update messages for existing conversation
+        return prev.map(c =>
+          c.user.id === receiverId
+            ? {
+                ...c,
+                messages: [...c.messages, newMsg],
+                lastMessage: {
+                  content: newMsg.content,
+                  timestamp: newMsg.timestamp,
+                  senderId: newMsg.senderId
+                }
+              }
+            : c
+        );
+      } else {
+        // Add new conversation to the top
+        return [
+          {
+            id: receiverId,
+            user: selectedConversation.user,
+            lastMessage: {
+              content: newMsg.content,
+              timestamp: newMsg.timestamp,
+              senderId: newMsg.senderId
+            },
+            messages: [newMsg]
+          },
+          ...prev
+        ];
+      }
+    });
+    setMessageInput("");
+  };
+
+  if (userLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <Navbar />
+        <div className="text-gray-400 mt-10">Loading...</div>
+      </div>
+    );
   }
 
-  const ConversationSkeleton = () => (
-    <div className="p-4 space-y-3">
-      <div className="flex items-center space-x-3">
-        <Skeleton className="h-10 w-10 rounded-full" />
-        <div className="flex-1 space-y-2">
-          <div className="flex justify-between">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-3 w-12" />
-          </div>
-          <Skeleton className="h-3 w-32" />
-        </div>
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <Navbar />
+        <div className="text-red-500 mt-10">You must be logged in to view messages.</div>
       </div>
-    </div>
-  )
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
-      <Navbar user={currentUser} />
-
-      <div className="container max-w-6xl mx-auto py-6 px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-8rem)]">
-          {/* Conversations List */}
-          <Card className={`lg:col-span-1 ${showMobileChat ? "hidden lg:block" : ""}`}>
-            <CardHeader>
-              <CardTitle>Messages</CardTitle>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search conversations..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ScrollArea className="h-[calc(100vh-16rem)]">
-                {isLoading ? (
-                  <>
-                    {[...Array(5)].map((_, index) => (
-                      <ConversationSkeleton key={index} />
-                    ))}
-                  </>
-                ) : filteredConversations.length > 0 ? (
-                  filteredConversations.map((conversation) => (
-                    <div key={conversation.id}>
-                      <div
-                        className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
-                          selectedConversation?.id === conversation.id ? "bg-blue-50 border-r-2 border-blue-500" : ""
-                        }`}
-                        onClick={() => handleConversationSelect(conversation)}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="relative">
-                            <Avatar>
-                              <AvatarImage src={conversation.user.avatar || "/placeholder.svg"} />
-                              <AvatarFallback>{conversation.user.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            {conversation.user.isOnline && (
-                              <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 border-2 border-white rounded-full"></div>
-                            )}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <p className="font-medium truncate">{conversation.user.name}</p>
-                              <div className="flex items-center space-x-2">
-                                <span className="text-xs text-muted-foreground">
-                                  {formatTime(conversation.lastMessage.timestamp)}
-                                </span>
-                                {conversation.unreadCount > 0 && (
-                                  <Badge className="h-5 w-5 rounded-full p-0 text-xs">{conversation.unreadCount}</Badge>
-                                )}
-                              </div>
-                            </div>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {conversation.lastMessage.senderId === (currentUser?.id || "currentUser") ? "You: " : ""}
-                              {conversation.lastMessage.content}
-                            </p>
-                            {!conversation.user.isOnline && conversation.user.lastSeen && (
-                              <p className="text-xs text-muted-foreground">
-                                Last seen {formatTime(conversation.user.lastSeen)}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <Separator />
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-8 text-center">
-                    <p className="text-muted-foreground">No conversations found</p>
-                  </div>
-                )}
-              </ScrollArea>
-            </CardContent>
-          </Card>
-
-          {/* Chat Area */}
-          <Card className={`lg:col-span-2 ${!showMobileChat ? "hidden lg:block" : ""}`}>
-            {selectedConversation ? (
-              <>
-                {/* Chat Header */}
-                <CardHeader className="border-b">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setShowMobileChat(false)}>
-                        <ArrowLeft className="h-4 w-4" />
-                      </Button>
-                      <div className="relative">
-                        <Avatar>
-                          <AvatarImage src={selectedConversation.user.avatar || "/placeholder.svg"} />
-                          <AvatarFallback>{selectedConversation.user.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        {selectedConversation.user.isOnline && (
-                          <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 border-2 border-white rounded-full"></div>
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="font-medium">{selectedConversation.user.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {selectedConversation.user.isOnline ? "Online" : "Offline"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm">
-                        <Phone className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Video className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-white">
+      <Navbar />
+      <div className="max-w-6xl mx-auto w-full flex flex-col md:flex-row gap-4 mt-6 px-2 overflow-x-hidden" style={{ maxWidth: '100vw' }}>
+        {/* Mobile: show search + recent chats, or chat window only */}
+        {/* Desktop: show both */}
+        {/* MOBILE: Show search + recent chats if not in chat, else show chat window only */}
+        <div className={`w-full md:w-1/3 ${mobileChatOpen ? 'hidden md:flex' : ''} bg-white rounded-2xl shadow-lg p-4 flex flex-col md:static`} style={{ minWidth: 0 }}>
+          <input
+            ref={inputRef}
+            type="text"
+            className="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="Search users to chat..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onFocus={() => search && setShowDropdown(true)}
+          />
+          {showDropdown && (
+            <div className="absolute bg-white border rounded-xl shadow-lg mt-2 w-full z-20">
+              {loading ? (
+                <div className="p-4 text-gray-400 text-center">Loading...</div>
+              ) : results.length === 0 ? (
+                <div className="p-4 text-gray-400 text-center">No users found</div>
+              ) : (
+                results.map(user => (
+                  <div key={user._id} className="flex items-center gap-3 p-3 hover:bg-gray-100 cursor-pointer" onClick={() => { handleUserSelect(user); if (window.innerWidth < 768) setMobileChatOpen(true); }}>
+                    <img src={user.avatar || "/placeholder-avatar.png"} alt={user.name} className="w-8 h-8 rounded-full border" />
+                    <div className="text-sm">
+                      <div className="font-medium text-gray-900">{user.name}</div>
+                      <div className="text-xs text-gray-500">{user.email}</div>
                     </div>
                   </div>
-                </CardHeader>
-
-                {/* Messages */}
-                <CardContent className="p-0 flex flex-col h-[calc(100vh-20rem)]">
-                  <ScrollArea className="flex-1 p-4">
-                    <div className="space-y-4">
-                      {selectedConversation.messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${message.senderId === (currentUser?.id || "currentUser") ? "justify-end" : "justify-start"}`}
-                        >
-                          <div
-                            className={`max-w-[70%] p-3 rounded-lg ${
-                              message.senderId === (currentUser?.id || "currentUser")
-                                ? "bg-blue-500 text-white"
-                                : "bg-gray-100 text-gray-900"
-                            }`}
-                          >
-                            <p className="text-sm">{message.content}</p>
-                            <p
-                              className={`text-xs mt-1 ${
-                                message.senderId === (currentUser?.id || "currentUser")
-                                  ? "text-blue-100"
-                                  : "text-gray-500"
-                              }`}
-                            >
-                              {formatTime(message.timestamp)}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-
-                  {/* Message Input */}
-                  <div className="border-t p-4">
-                    <form onSubmit={handleSendMessage} className="flex space-x-2">
-                      <Input
-                        placeholder="Type a message..."
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        className="flex-1"
-                        disabled={isSending}
-                      />
-                      <Button type="submit" disabled={!newMessage.trim() || isSending}>
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </form>
-                  </div>
-                </CardContent>
-              </>
+                ))
+              )}
+            </div>
+          )}
+          <div className="mt-4 flex-1 overflow-visible md:overflow-y-auto md:custom-scrollbar">
+            {conversationsLoading ? (
+              <div className="text-gray-400 text-center">Loading chats...</div>
+            ) : conversations.length === 0 ? (
+              <div className="text-gray-400 text-center">No recent chats</div>
             ) : (
-              <CardContent className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Send className="h-8 w-8 text-gray-400" />
+              conversations.map(conv => (
+                <div key={conv.id} className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-blue-50 ${selectedConversation?.id === conv.id ? "bg-blue-100" : ""}`} onClick={() => { setSelectedConversation(conv); if (window.innerWidth < 768) setMobileChatOpen(true); }}>
+                  <img src={conv.user.avatar || "/placeholder-avatar.png"} alt={conv.user.name} className="w-10 h-10 rounded-full border" />
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-800 truncate">{conv.user.name}</div>
+                    <div className="text-xs text-gray-500 truncate">{conv.lastMessage.content}</div>
                   </div>
-                  <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
-                  <p className="text-muted-foreground">Choose a conversation from the list to start messaging.</p>
+                  <div className="text-xs text-gray-400">
+                    {conv.lastMessage.timestamp && new Date(conv.lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
                 </div>
-              </CardContent>
+              ))
             )}
-          </Card>
+          </div>
+        </div>
+        {/* Chat Window */}
+        <div className={`w-full md:flex-1 bg-white rounded-2xl shadow-lg flex flex-col ${mobileChatOpen ? '' : 'hidden'} md:flex`} style={{ minWidth: 0, height: 'calc(100vh - 5rem)' }}>
+          {selectedConversation ? (
+            <>
+              {/* Mobile back button */}
+              <div className="flex items-center gap-3 border-b px-6 py-4">
+                {window.innerWidth < 768 && (
+                  <button className="mr-2 md:hidden" onClick={() => setMobileChatOpen(false)} aria-label="Back to chats">
+                    <ArrowLeft size={24} />
+                  </button>
+                )}
+                <img src={selectedConversation.user.avatar || "/placeholder-avatar.png"} alt={selectedConversation.user.name} className="w-10 h-10 rounded-full border" />
+                <div className="font-semibold text-gray-800 text-lg">{selectedConversation.user.name}</div>
+              </div>
+
+              <div
+                className="flex-1 px-6 py-4 overflow-y-auto custom-scrollbar"
+                ref={chatWindowRef}
+                onScroll={handleChatScroll}
+                style={{ minHeight: 0 }}
+              >
+                {selectedConversation.messages.length === 0 ? (
+                  <div className="text-gray-400 text-center mt-10">No messages yet. Start the conversation!</div>
+                ) : (
+                  (() => {
+                    const uniqueMessages: typeof selectedConversation.messages = [];
+                    const seen = new Set();
+                    for (const msg of selectedConversation.messages) {
+                      const key = msg.id + '-' + msg.timestamp;
+                      if (!seen.has(key)) {
+                        uniqueMessages.push(msg);
+                        seen.add(key);
+                      }
+                    }
+                    // Show only the most recent visibleMsgCount messages
+                    const visibleMessages = uniqueMessages.slice(-visibleMsgCount);
+                    return visibleMessages.map(msg => (
+                      <div key={msg.id + '-' + msg.timestamp} className={`flex mb-3 ${msg.senderId === currentUser._id ? "justify-end" : "justify-start"}`}>
+                        <div className={`px-3 py-2 rounded-2xl text-sm shadow ${msg.senderId === currentUser._id ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-900"}`}
+                          style={{ maxWidth: '50%', width: 'fit-content', minWidth: 32, wordBreak: 'break-word' }}>
+                          <div>{msg.content}</div>
+                          <div className="text-[10px] text-gray-500 text-right mt-1">
+                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      </div>
+                    ));
+                  })()
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <div className="border-t px-4 py-3 flex items-center gap-2">
+                <input
+                  type="text"
+                  className="flex-1 border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  placeholder="Type a message..."
+                  value={messageInput}
+                  onChange={e => setMessageInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") handleSendMessage(); }}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!messageInput.trim()}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl disabled:opacity-50"
+                >
+                  Send
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-gray-400 text-center px-4">
+              <p>Select a chat or search for a user to start messaging.</p>
+            </div>
+          )}
         </div>
       </div>
-
-      <MobileNavigation />
     </div>
-  )
+  );
 }

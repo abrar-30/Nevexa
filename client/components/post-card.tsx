@@ -1,8 +1,7 @@
 "use client"
 
-import type React from "react"
+import React, { useState, useEffect, useRef } from "react"
 
-import { useState } from "react"
 import Image from "next/image"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -11,9 +10,10 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ReportDialog } from "@/components/report-dialog"
-import { Heart, MessageCircle, Share, MoreHorizontal, Flag } from "lucide-react"
+import { Heart, MessageCircle, Share, MoreHorizontal, Flag, PlayCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import type { Post } from "@/lib/posts-api"
+import { API_BASE_URL } from "@/lib/api"
 
 interface PostCardProps {
   post: Post
@@ -29,16 +29,69 @@ export function PostCard({ post, onLike, onComment, currentUserId, userRole = "g
   const [showReportDialog, setShowReportDialog] = useState(false)
   const [mediaError, setMediaError] = useState(false)
   const router = useRouter()
+  const [comments, setComments] = useState(post.comments || [])
+  const [loadingComments, setLoadingComments] = useState(false)
+  const [commentCount, setCommentCount] = useState(post.comments ? post.comments.length : 0)
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  // Pause other videos when this one plays
+  useEffect(() => {
+    const handlePlay = (e: Event) => {
+      document.querySelectorAll('video').forEach((vid) => {
+        if (vid !== videoRef.current) vid.pause()
+      })
+    }
+    const video = videoRef.current
+    if (video) {
+      video.addEventListener('play', handlePlay)
+      return () => video.removeEventListener('play', handlePlay)
+    }
+  }, [])
+
+  useEffect(() => {
+    // Always fetch comment count on mount
+    fetch(`${API_BASE_URL}/comments/post/${post._id}`, {
+      credentials: "include",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setCommentCount(Array.isArray(data) ? data.length : 0)
+      })
+      .catch(() => setCommentCount(0))
+    if (showComments) {
+      setLoadingComments(true)
+      fetch(`${API_BASE_URL}/comments/post/${post._id}`, {
+        credentials: "include",
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          setComments(Array.isArray(data) ? data : [])
+          setCommentCount(Array.isArray(data) ? data.length : 0)
+        })
+        .catch(() => {
+          setComments([])
+          setCommentCount(0)
+        })
+        .finally(() => setLoadingComments(false))
+    }
+  }, [showComments, post._id])
 
   const isLiked = post.likes.includes(currentUserId)
   const likesCount = post.likes.length
-  const commentsCount = post.comments.length
+  const commentsCount = commentCount
+
+  // Debug: Log comments to console
+  console.log('Post comments for post', post._id, comments);
 
   const handleSubmitComment = (e: React.FormEvent) => {
     e.preventDefault()
     if (comment.trim()) {
       onComment(post._id, comment)
       setComment("")
+      // Refetch comments after adding
+      setTimeout(() => setShowComments(false), 0)
+      setTimeout(() => setShowComments(true), 100)
     }
   }
 
@@ -90,6 +143,7 @@ export function PostCard({ post, onLike, onComment, currentUserId, userRole = "g
           <video
             src={post.fileUrl}
             controls
+            controlsList="nofullscreen"
             className="w-full h-auto object-cover cursor-pointer max-h-96"
             onError={() => setMediaError(true)}
             preload="metadata"
@@ -180,7 +234,7 @@ export function PostCard({ post, onLike, onComment, currentUserId, userRole = "g
 
             <Button variant="ghost" size="sm" onClick={() => setShowComments(!showComments)}>
               <MessageCircle className="h-4 w-4 mr-1" />
-              {commentsCount}
+              <span>{commentsCount}</span>
             </Button>
 
             <Button variant="ghost" size="sm">
@@ -195,20 +249,31 @@ export function PostCard({ post, onLike, onComment, currentUserId, userRole = "g
             <Separator />
 
             <div className="space-y-2 max-h-40 overflow-y-auto">
-              {post.comments.map((comment) => (
-                <div key={comment._id} className="flex items-start space-x-2">
-                  <Avatar className="h-6 w-6">
-                    <AvatarImage src={comment.user.avatar || "/placeholder.svg"} />
-                    <AvatarFallback>{comment.user.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="text-xs">
-                      <span className="font-medium">{comment.user.name}</span> {comment.content}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{formatDate(comment.createdAt)}</p>
+              {loadingComments ? (
+                <div className="text-xs text-muted-foreground text-center">Loading comments...</div>
+              ) : comments.length === 0 ? (
+                <div className="text-xs text-muted-foreground text-center">No comments yet. Be the first to comment!</div>
+              ) : (
+                comments.map((comment) => (
+                  <div key={comment._id} className="flex items-start space-x-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={comment.user.avatar || "/placeholder.svg"} />
+                      <AvatarFallback>{comment.user.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <p className="text-xs">
+                        <span
+                          className="font-medium text-blue-600 hover:underline cursor-pointer"
+                          onClick={() => router.push(`/profile/${comment.user._id}`)}
+                        >
+                          {comment.user.name}
+                        </span> {comment.content}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{formatDate(comment.createdAt)}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             <form onSubmit={handleSubmitComment} className="flex space-x-2">

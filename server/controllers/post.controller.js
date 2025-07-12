@@ -7,7 +7,8 @@ const { cloudinary } = require('../middleware/cloudinary.middleware');
 exports.getAllPosts = async (req, res) => {
   try {
     const posts = await Post.find()
-      .populate('user', 'name email avatar');
+      .populate('user', 'name email avatar')
+      .populate({ path: 'comments', populate: { path: 'user', select: 'name avatar' } });
     res.json({ posts }); // <-- wrap in an object
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch posts' });
@@ -18,7 +19,8 @@ exports.getAllPosts = async (req, res) => {
 exports.getPostById = async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId)
-      .populate('user', 'name email avatar');
+      .populate('user', 'name email avatar')
+      .populate({ path: 'comments', populate: { path: 'user', select: 'name avatar' } });
     if (!post) return res.status(404).json({ error: 'Post not found' });
     res.json(post);
   } catch (err) {

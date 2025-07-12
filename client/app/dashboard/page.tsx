@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Plus, RefreshCw, AlertCircle, Wifi } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { getAllPosts, likePost, unlikePost, type Post } from "@/lib/posts-api"
+import { getAllPosts, likePost, unlikePost, addComment, type Post } from "@/lib/posts-api"
 import { getCurrentUser, type AuthUser } from "@/lib/auth-api"
 import { ApiError } from "@/lib/api"
 import { PostsList } from "@/components/posts-list";
@@ -237,9 +237,8 @@ export default function DashboardPage() {
     }
 
     try {
-      // For now, refresh posts to get updated comments
+      await addComment(postId, comment)
       await loadPosts(true)
-
       toast({
         title: "Comment Added",
         description: "Your comment has been posted.",

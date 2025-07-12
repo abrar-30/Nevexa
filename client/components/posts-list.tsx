@@ -14,7 +14,9 @@ interface PostsListProps {
 }
 
 export function PostsList({ posts, onLike, onComment, currentUserId, onCreatePost }: PostsListProps) {
-  const filteredPosts = posts.filter(post => post.user);
+  const filteredPosts = posts
+    .filter(post => post.user)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   return (
     <div className="space-y-6">
       {filteredPosts.length > 0 ? (

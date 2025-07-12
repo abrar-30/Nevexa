@@ -13,7 +13,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     console.log("Successfully fetched current user:", response)
     return response.user || (response as any)
   } catch (error) {
-    console.error("Failed to get current user:", error)
+    // console.error("Failed to get current user:", error)
 
     if (error instanceof ApiError) {
       // Handle authentication errors

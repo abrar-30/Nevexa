@@ -149,12 +149,12 @@ export async function unlikePost(postId: string): Promise<void> {
 // Add comment to post
 export async function addComment(postId: string, content: string): Promise<Comment> {
   try {
-    const response = await apiRequest<{ comment: Comment }>(`/posts/${postId}/comments`, {
+    const response = await apiRequest<Comment>(`/comments`, {
       method: "POST",
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, post: postId }),
+      headers: { "Content-Type": "application/json" },
     })
-
-    return response.comment || (response as any)
+    return response
   } catch (error) {
     console.error("Failed to add comment:", error)
     throw error

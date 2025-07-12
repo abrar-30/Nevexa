@@ -1,5 +1,5 @@
 // Get current user's profile with joinedCommunities, followers, and following populated
-exports.getMe = async (req, res) => {
+const getMe = async (req, res) => {
   console.log('Session:', req.session);
   console.log('User:', req.user);
   if (!req.user) {
@@ -16,9 +16,10 @@ exports.getMe = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch user profile.' });
   }
 };
+exports.getMe = getMe;
 
 // Get user profile by ID with followers and following populated
-exports.getUserById = async (req, res) => {
+const getUserById = async (req, res) => {
   const User = require('../models/user.model');
   try {
     const user = await User.findById(req.params.id)
@@ -31,9 +32,10 @@ exports.getUserById = async (req, res) => {
     res.status(400).json({ error: 'Invalid user ID' });
   }
 };
+exports.getUserById = getUserById;
 
 // Update user profile (self only)
-exports.updateUser = async (req, res) => {
+const updateUser = async (req, res) => {
   const User = require('../models/user.model');
   if (req.user._id.toString() !== req.params.id) {
     return res.status(403).json({ error: 'You can only update your own profile.' });
@@ -50,9 +52,10 @@ exports.updateUser = async (req, res) => {
     res.status(400).json({ error: 'Failed to update user.' });
   }
 };
+exports.updateUser = updateUser;
 
 // Follow a user
-exports.followUser = async (req, res) => {
+const followUser = async (req, res) => {
   const User = require('../models/user.model');
   const userId = req.user._id;
   const targetId = req.params.id;
@@ -69,9 +72,10 @@ exports.followUser = async (req, res) => {
     res.status(500).json({ error: "Failed to follow user." });
   }
 };
+exports.followUser = followUser;
 
 // Unfollow a user
-exports.unfollowUser = async (req, res) => {
+const unfollowUser = async (req, res) => {
   const User = require('../models/user.model');
   const userId = req.user._id;
   const targetId = req.params.id;
@@ -88,9 +92,10 @@ exports.unfollowUser = async (req, res) => {
     res.status(500).json({ error: "Failed to unfollow user." });
   }
 };
+exports.unfollowUser = unfollowUser;
 
 // Upload user avatar
-exports.uploadAvatar = async (req, res) => {
+const uploadAvatar = async (req, res) => {
   const User = require('../models/user.model');
   if (req.user._id.toString() !== req.params.id) {
     return res.status(403).json({ error: 'You can only update your own avatar.' });
@@ -109,56 +114,31 @@ exports.uploadAvatar = async (req, res) => {
     res.status(500).json({ error: 'Failed to update avatar.' });
   }
 };
+exports.uploadAvatar = uploadAvatar;
 
-// Search users by name, email, or bio
-exports.searchUsers = async (req, res) => {
-  const User = require('../models/user.model');
+// Search users by name or email, excluding the current user
+const searchUsers = async (req, res) => {
   try {
-    const { q, limit = 20, skip = 0 } = req.query;
-    if (!q) {
-      return res.status(400).json({ error: 'Missing search query (q)' });
-    }
-    const regex = new RegExp(q, "i");
-    const searchFilter = {
-      $and: [
-        {
-          $or: [
-            { name: regex },
-            { email: regex },
-            { bio: regex },
-            { location: regex }
-          ]
-        },
-        // Exclude current user if authenticated
-        ...(req.user ? [{ _id: { $ne: req.user._id } }] : [])
+    const query = req.query.q || "";
+    const currentUserId = req.user._id.toString();
+    const User = require("../models/user.model");
+    const users = await User.find({
+      _id: { $ne: currentUserId },
+      $or: [
+        { name: { $regex: query, $options: "i" } },
+        { email: { $regex: query, $options: "i" } },
+        { avatar: { $regex: query, $options: "i" } }
       ]
-    };
-    const users = await User.find(searchFilter)
-      .select('-hash -salt')
-      .skip(Number(skip))
-      .limit(Number(limit));
-
-    // Always fetch the current user's following list from DB for reliability
-    let followingSet = new Set();
-    if (req.user) {
-      const currentUser = await User.findById(req.user._id).select('following');
-      if (currentUser && currentUser.following) {
-        followingSet = new Set(currentUser.following.map(id => id.toString()));
-      }
-    }
-
-    const usersWithIsFollowing = users.map(user => {
-      const isFollowing = req.user ? followingSet.has(user._id.toString()) : false;
-      return { ...user.toObject(), isFollowing };
-    });
-    res.json({ users: usersWithIsFollowing });
+    }).select("_id name email avatar");
+    res.json({ users });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Failed to search users" });
   }
 };
+exports.searchUsers = searchUsers;
 
 // Get all users (with basic info, paginated)
-exports.getAllUsers = async (req, res) => {
+const getAllUsers = async (req, res) => {
   const User = require('../models/user.model');
   try {
     const { limit = 20, skip = 0 } = req.query;
@@ -187,3 +167,5 @@ exports.getAllUsers = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch users.' });
   }
 };
+exports.getAllUsers = getAllUsers;
+exports.searchUsers = searchUsers;

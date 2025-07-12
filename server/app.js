@@ -11,6 +11,7 @@ const passport = require('passport');
 const User = require('./models/user.model');
 const errorHandler = require('./middleware/error.middleware');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   proxy: true,
+  store: MongoStore.create({ mongoUrl: process.env.MONGODB_URI }),
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
@@ -72,15 +74,13 @@ app.use('/api/posts', postRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reports', reportRoutes);
-app.use('/api/users', (req, res, next) => {
-  req._isAuthenticated = isAuthenticated;
-  next();
-}, userRoutes);
+app.use('/api/users', isAuthenticated, userRoutes);
 app.use('/api/comments', commentRoutes);
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: 'http://localhost:3000',
+    credentials: true,
   },
 });
 socketHandler(io);
