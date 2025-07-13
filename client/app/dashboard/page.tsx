@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Plus, RefreshCw, AlertCircle, Wifi } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { getAllPosts, likePost, unlikePost, addComment, type Post } from "@/lib/posts-api"
+import { getAllPosts, likePost, unlikePost, addComment, deletePost, type Post } from "@/lib/posts-api"
 import { getCurrentUser, type AuthUser } from "@/lib/auth-api"
 import { ApiError } from "@/lib/api"
 import { PostsList } from "@/components/posts-list";
@@ -254,6 +254,35 @@ export default function DashboardPage() {
     }
   }
 
+  const handleDeletePost = async (postId: string) => {
+    if (!state.currentUser) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to delete posts.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      await deletePost(postId)
+      // Remove the deleted post from the local state
+      updateState({
+        posts: state.posts.filter(post => post._id !== postId)
+      })
+      toast({
+        title: "Post Deleted",
+        description: "Your post has been deleted successfully.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete post",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handlePostCreated = (newPost: Post) => {
     updateState({
       posts: [newPost, ...state.posts],
@@ -338,6 +367,7 @@ export default function DashboardPage() {
           onComment={handleComment}
           currentUserId={state.currentUser?._id || ""}
           onCreatePost={() => updateState({ showCreatePost: true })}
+          onDelete={handleDeletePost}
         />
       </div>
 

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ReportDialog } from "@/components/report-dialog"
-import { Heart, MessageCircle, Share, MoreHorizontal, Flag, PlayCircle } from "lucide-react"
+import { Heart, MessageCircle, Share, MoreHorizontal, Flag, PlayCircle, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import type { Post } from "@/lib/posts-api"
 import { API_BASE_URL } from "@/lib/api"
@@ -21,9 +21,10 @@ interface PostCardProps {
   onComment: (postId: string, comment: string) => void
   currentUserId: string
   userRole?: "general" | "admin"
+  onDelete?: (postId: string) => void
 }
 
-export function PostCard({ post, onLike, onComment, currentUserId, userRole = "general" }: PostCardProps) {
+export function PostCard({ post, onLike, onComment, currentUserId, userRole = "general", onDelete }: PostCardProps) {
   const [comment, setComment] = useState("")
   const [showComments, setShowComments] = useState(false)
   const [showReportDialog, setShowReportDialog] = useState(false)
@@ -104,6 +105,18 @@ export function PostCard({ post, onLike, onComment, currentUserId, userRole = "g
     e.stopPropagation()
     router.push(`/profile/${userId}`)
   }
+
+  const handleDeletePost = async () => {
+    if (onDelete) {
+      try {
+        await onDelete(post._id)
+      } catch (error) {
+        console.error('Failed to delete post:', error)
+      }
+    }
+  }
+
+  const isPostCreator = post.user._id === currentUserId
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -199,11 +212,22 @@ export function PostCard({ post, onLike, onComment, currentUserId, userRole = "g
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {/* Show report option only if user is not the post creator */}
+            {!isPostCreator && (
             <DropdownMenuItem onClick={() => setShowReportDialog(true)}>
               <Flag className="mr-2 h-4 w-4" />
               Report Post
             </DropdownMenuItem>
-            {userRole === "admin" && (
+            )}
+            {/* Show delete option for post creator */}
+            {isPostCreator && onDelete && (
+              <DropdownMenuItem onClick={handleDeletePost} className="text-red-600">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Post
+              </DropdownMenuItem>
+            )}
+            {/* Admin options */}
+            {userRole === "admin" && !isPostCreator && (
               <>
                 <DropdownMenuItem>Edit Post</DropdownMenuItem>
                 <DropdownMenuItem className="text-red-600">Delete Post</DropdownMenuItem>

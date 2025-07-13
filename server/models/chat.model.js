@@ -3,7 +3,10 @@ const mongoose = require("mongoose");
 
 const chatSchema = new mongoose.Schema({
   participants: [
-    { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+    {
+      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      lastRead: { type: Date, default: null }
+    }
   ],
   lastMessage: {
     type: mongoose.Schema.Types.ObjectId,

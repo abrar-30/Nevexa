@@ -27,6 +27,7 @@ export interface Conversation {
     timestamp: string;
     senderId: string;
   };
+  unreadCount: number;
   messages: {
     id: string;
     content: string;
@@ -84,6 +85,13 @@ export async function sendMessage(data: SendMessageRequest): Promise<Message> {
   return apiRequest<Message>('/chat', {
     method: 'POST',
     body: JSON.stringify(data),
+  });
+}
+
+// Mark conversation as read
+export async function markConversationAsRead(conversationId: string): Promise<void> {
+  return apiRequest<void>(`/chat/conversations/${conversationId}/read`, {
+    method: 'PATCH',
   });
 }
 

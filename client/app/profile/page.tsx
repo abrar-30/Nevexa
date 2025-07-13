@@ -13,9 +13,10 @@ import { PostsList } from "@/components/posts-list"
 import ProfileSkeleton from "@/components/profile-skeleton"
 import PostSkeleton from "@/components/post-skeleton"
 import { EditProfileDialog } from "@/components/edit-profile-dialog"
-import { Edit, MapPin, Calendar, Users, Heart } from "lucide-react"
+import { Edit, MapPin, Calendar, Users, Heart, Trash2 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getCurrentUser } from "@/lib/auth-api"
+import { deletePost } from "@/lib/posts-api"
 import { useRouter } from "next/navigation"
 
 export default function ProfilePage() {
@@ -27,6 +28,24 @@ export default function ProfilePage() {
   const { toast } = useToast()
   const [showEditProfile, setShowEditProfile] = useState(false)
   const router = useRouter()
+
+  const handleDeletePost = async (postId: string) => {
+    try {
+      await deletePost(postId)
+      // Remove the deleted post from the local state
+      setPosts(posts.filter(post => post._id !== postId))
+      toast({ 
+        title: "Post Deleted", 
+        description: "Your post has been deleted successfully." 
+      })
+    } catch (error: any) {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete post", 
+        variant: "destructive" 
+      })
+    }
+  }
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -205,6 +224,7 @@ export default function ProfilePage() {
                 onLike={() => {}}
                 onComment={() => {}}
                 currentUserId={user._id}
+                onDelete={handleDeletePost}
               />
             ) : (
               <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">

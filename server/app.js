@@ -1,3 +1,10 @@
+// .env should define MONGODB_URI, SESSION_SECRET, and NODE_ENV
+// For local dev, create a .env file with:
+// MONGODB_URI=mongodb://localhost:27017/yourdbname
+// SESSION_SECRET=your-local-secret
+// NODE_ENV=development
+// For production, set these as environment variables securely.
+
 const path = require('path');
 const dotenv = require('dotenv');
 dotenv.config();
@@ -22,6 +29,10 @@ if (process.env.MONGODB_URI) {
   console.log('⚠️  MongoDB URI not found. Running without database connection.');
 }
 
+if (!process.env.SESSION_SECRET) {
+  console.warn('⚠️  SESSION_SECRET not set. Using fallback. Set SESSION_SECRET in your .env for security.');
+}
+
 // Add compression middleware for better performance
 app.use(compression());
 
@@ -35,7 +46,7 @@ app.use('/test', express.static(path.join(__dirname, 'test')));
 
 
 app.use(session({
-  secret: 'replace-with-a-strong-secret',
+  secret: process.env.SESSION_SECRET || 'dev-secret', // Use env var, fallback for local dev
   resave: false,
   saveUninitialized: false,
   proxy: true,
@@ -43,7 +54,7 @@ app.use(session({
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
-    secure: false,
+    secure: process.env.NODE_ENV === 'production', // Secure cookies in production only
   }
 }));
 

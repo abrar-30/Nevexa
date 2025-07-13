@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,9 +8,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { Search, Shield, ShieldOff, Edit, Trash2 } from "lucide-react"
+import { getAllUsers, blockUser, unblockUser, deleteUser } from "@/lib/admin-api"
 
 interface User {
-  id: string
+  _id: string
   name: string
   email: string
   avatar?: string
@@ -25,6 +26,17 @@ export function AdminUsersTab() {
   const [users, setUsers] = useState<User[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setLoading(true)
+    getAllUsers()
+      .then((data) => {
+        if (Array.isArray(data)) setUsers(data)
+        else if (data && Array.isArray((data as any).users)) setUsers((data as any).users)
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
   const filteredUsers = users.filter(
     (user) =>
@@ -32,29 +44,30 @@ export function AdminUsersTab() {
       user.email.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const handleBlockUser = (userId: string) => {
-    setUsers(
-      users.map((user) =>
-        user.id === userId
-          ? { ...user, status: user.status === "active" ? ("blocked" as const) : ("active" as const) }
-          : user,
-      ),
-    )
-    const user = users.find((u) => u.id === userId)
-    toast({
-      title: user?.status === "active" ? "User Blocked" : "User Unblocked",
-      description: `${user?.name} has been ${user?.status === "active" ? "blocked" : "unblocked"}.`,
-    })
+  const handleBlockUser = async (userId: string, status: string) => {
+    try {
+      if (status === "active") {
+        await blockUser(userId)
+        setUsers(users.map((user) => user._id === userId ? { ...user, status: "blocked" as const } : user))
+        toast({ title: "User Blocked", description: `User has been blocked.` })
+      } else {
+        await unblockUser(userId)
+        setUsers(users.map((user) => user._id === userId ? { ...user, status: "active" as const } : user))
+        toast({ title: "User Unblocked", description: `User has been unblocked.` })
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to update user status.", variant: "destructive" })
+    }
   }
 
-  const handleDeleteUser = (userId: string) => {
-    setUsers(users.filter((user) => user.id !== userId))
-    const user = users.find((u) => u.id === userId)
-    toast({
-      title: "User Deleted",
-      description: `${user?.name} has been permanently deleted.`,
-      variant: "destructive",
-    })
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await deleteUser(userId)
+      setUsers(users.filter((user) => user._id !== userId))
+      toast({ title: "User Deleted", description: `User has been permanently deleted.`, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to delete user.", variant: "destructive" })
+    }
   }
 
   return (
@@ -78,8 +91,10 @@ export function AdminUsersTab() {
       </Card>
 
       <div className="space-y-4">
+        {loading && <div className="text-center text-gray-500">Loading...</div>}
+        {!loading && filteredUsers.length === 0 && <div className="text-center text-gray-500">No users found.</div>}
         {filteredUsers.map((user) => (
-          <Card key={user.id}>
+          <Card key={user._id}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -112,7 +127,7 @@ export function AdminUsersTab() {
                   <Button
                     variant={user.status === "active" ? "destructive" : "default"}
                     size="sm"
-                    onClick={() => handleBlockUser(user.id)}
+                    onClick={() => handleBlockUser(user._id, user.status)}
                   >
                     {user.status === "active" ? (
                       <>
@@ -127,7 +142,7 @@ export function AdminUsersTab() {
                     )}
                   </Button>
 
-                  <Button variant="destructive" size="sm" onClick={() => handleDeleteUser(user.id)}>
+                  <Button variant="destructive" size="sm" onClick={() => handleDeleteUser(user._id)}>
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete
                   </Button>

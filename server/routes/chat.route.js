@@ -1,6 +1,6 @@
 
 const express = require("express");
-const { getMessages, sendMessage, getConversations } = require("../controllers/chat.controller");
+const { getMessages, sendMessage, getConversations, markConversationAsRead } = require("../controllers/chat.controller");
 const { isAuthenticated } = require("../middleware/auth.middleware");
 const router = express.Router();
 
@@ -10,5 +10,8 @@ router.post("/", isAuthenticated, sendMessage);              // POST a new messa
 
 // GET /api/chat/conversations
 router.get("/conversations", isAuthenticated, getConversations);
+
+// PATCH /api/chat/conversations/:conversationId/read
+router.patch("/conversations/:conversationId/read", isAuthenticated, markConversationAsRead);
 
 module.exports = router;

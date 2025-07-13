@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Navbar } from "@/components/navbar"
 import { MobileNavigation } from "@/components/mobile-navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,8 +10,43 @@ import { AdminUsersTab } from "@/components/admin/admin-users-tab"
 import { AdminReportsTab } from "@/components/admin/admin-reports-tab"
 import { AdminCommentsTab } from "@/components/admin/admin-comments-tab"
 import { Shield, Users, FileText, MessageSquare, Flag } from "lucide-react"
+import { getAllUsers, getAllPosts, getAllComments, getAllReports } from "@/lib/admin-api"
 
 export default function AdminPage() {
+  const [stats, setStats] = useState({ users: 0, posts: 0, comments: 0, pendingReports: 0 })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchStats() {
+      setLoading(true)
+      setError(null)
+      try {
+        const [usersRes, postsRes, commentsRes, reportsRes] = await Promise.all([
+          getAllUsers(),
+          getAllPosts(),
+          getAllComments(),
+          getAllReports(),
+        ])
+        const users = Array.isArray(usersRes) ? usersRes : (usersRes && Array.isArray((usersRes as any).users) ? (usersRes as any).users : [])
+        const posts = Array.isArray(postsRes) ? postsRes : (postsRes && Array.isArray((postsRes as any).posts) ? (postsRes as any).posts : [])
+        const comments = Array.isArray(commentsRes) ? commentsRes : (commentsRes && Array.isArray((commentsRes as any).comments) ? (commentsRes as any).comments : [])
+        const reports = Array.isArray(reportsRes) ? reportsRes : (reportsRes && Array.isArray((reportsRes as any).reports) ? (reportsRes as any).reports : [])
+        setStats({
+          users: users.length,
+          posts: posts.length,
+          comments: comments.length,
+          pendingReports: reports.filter((r: any) => r.status === "pending").length,
+        })
+      } catch (e) {
+        setError("Failed to load stats.")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchStats()
+  }, [])
+
   return (
     <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
       <Navbar />
@@ -29,7 +65,7 @@ export default function AdminPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">1234</div>
+              <div className="text-2xl font-bold">{loading ? "..." : error ? "-" : stats.users}</div>
             </CardContent>
           </Card>
 
@@ -39,7 +75,7 @@ export default function AdminPage() {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">5678</div>
+              <div className="text-2xl font-bold">{loading ? "..." : error ? "-" : stats.posts}</div>
             </CardContent>
           </Card>
 
@@ -49,7 +85,7 @@ export default function AdminPage() {
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">9012</div>
+              <div className="text-2xl font-bold">{loading ? "..." : error ? "-" : stats.comments}</div>
             </CardContent>
           </Card>
 
@@ -59,7 +95,7 @@ export default function AdminPage() {
               <Flag className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">23</div>
+              <div className="text-2xl font-bold text-red-600">{loading ? "..." : error ? "-" : stats.pendingReports}</div>
             </CardContent>
           </Card>
         </div>

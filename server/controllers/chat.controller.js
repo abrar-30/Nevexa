@@ -1,5 +1,6 @@
 const Message = require("../models/message.model");
 const User = require("../models/user.model");
+const Chat = require("../models/chat.model");
 const mongoose = require("mongoose");
 
 // Fetch chat history between two users
@@ -55,6 +56,96 @@ const sendMessage = async (req, res) => {
   }
 };
 
+// Mark conversation as read for current user
+const markConversationAsRead = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const { conversationId } = req.params;
+    const currentUserId = req.user._id;
+
+    // Find or create chat for this conversation
+    let chat = await Chat.findOne({
+      participants: { $all: [conversationId, currentUserId] }
+    });
+
+    if (!chat) {
+      // Create new chat if it doesn't exist
+      chat = new Chat({
+        participants: [
+          { user: currentUserId, lastRead: new Date() },
+          { user: conversationId, lastRead: null }
+        ]
+      });
+    } else {
+      // Update current user's lastRead
+      const participantIndex = chat.participants.findIndex(
+        p => p.user.toString() === currentUserId.toString()
+      );
+      
+      if (participantIndex !== -1) {
+        chat.participants[participantIndex].lastRead = new Date();
+      } else {
+        // Add current user to participants if not present
+        chat.participants.push({ user: currentUserId, lastRead: new Date() });
+      }
+    }
+
+    await chat.save();
+    res.json({ success: true, message: 'Conversation marked as read' });
+  } catch (err) {
+    console.error('Mark conversation as read error:', err);
+    res.status(500).json({ error: 'Failed to mark conversation as read' });
+  }
+};
+
+// Get unread count for a conversation
+const getUnreadCount = async (currentUserId, otherUserId) => {
+  try {
+    // Find the chat
+    const chat = await Chat.findOne({
+      participants: { $all: [currentUserId, otherUserId] }
+    });
+
+    if (!chat) {
+      // If no chat exists, count all messages from other user
+      const count = await Message.countDocuments({
+        sender: otherUserId,
+        receiver: currentUserId
+      });
+      return count;
+    }
+
+    // Find current user's lastRead
+    const currentUserParticipant = chat.participants.find(
+      p => p.user.toString() === currentUserId.toString()
+    );
+
+    if (!currentUserParticipant || !currentUserParticipant.lastRead) {
+      // If no lastRead, count all messages from other user
+      const count = await Message.countDocuments({
+        sender: otherUserId,
+        receiver: currentUserId
+      });
+      return count;
+    }
+
+    // Count messages sent after lastRead
+    const count = await Message.countDocuments({
+      sender: otherUserId,
+      receiver: currentUserId,
+      createdAt: { $gt: currentUserParticipant.lastRead }
+    });
+
+    return count;
+  } catch (err) {
+    console.error('Get unread count error:', err);
+    return 0;
+  }
+};
+
 // Get all conversations for the current user
 const getConversations = async (req, res) => {
   try {
@@ -96,7 +187,7 @@ const getConversations = async (req, res) => {
       }
     ]);
 
-    // For each participant, get user info and all messages
+    // For each participant, get user info, all messages, and unread count
     const conversations = await Promise.all(participants.map(async (p) => {
       const user = await User.findById(new mongoose.Types.ObjectId(p._id)).select("_id name avatar");
       const messages = await Message.find({
@@ -106,7 +197,8 @@ const getConversations = async (req, res) => {
         ]
       }).sort({ createdAt: 1 });
       
-
+      // Get unread count
+      const unreadCount = await getUnreadCount(userId, p._id);
       
       return {
         id: p._id,
@@ -116,6 +208,7 @@ const getConversations = async (req, res) => {
           timestamp: p.lastMessage.createdAt,
           senderId: p.lastMessage.sender
         },
+        unreadCount,
         messages: messages.map(m => ({
           id: m._id,
           content: m.content,
@@ -125,7 +218,6 @@ const getConversations = async (req, res) => {
         }))
       };
     }));
-
 
     res.json({ conversations });
   } catch (err) {
@@ -137,5 +229,6 @@ const getConversations = async (req, res) => {
 module.exports = {
   getMessages,
   sendMessage,
-  getConversations
+  getConversations,
+  markConversationAsRead
 };

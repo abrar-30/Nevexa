@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Send, ArrowLeft, Loader2, MessageCircle, Plus, X, RefreshCw } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth-api";
-import { getConversations, searchUsers, sendMessage, type Conversation, type User } from "@/lib/chat-api";
+import { getConversations, searchUsers, sendMessage, markConversationAsRead, type Conversation, type User } from "@/lib/chat-api";
 import { Navbar } from "@/components/navbar";
 import { MobileNavigation } from "@/components/mobile-navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -334,10 +334,29 @@ export default function MessagesPage() {
   }, [selectedConversation?.messages]);
 
   // Handle conversation selection
-  const handleConversationSelect = useCallback((conversation: Conversation) => {
+  const handleConversationSelect = useCallback(async (conversation: Conversation) => {
     try {
       console.log('Selecting conversation:', conversation.user.name, 'Mobile:', isMobile);
       setSelectedConversation(conversation);
+      
+      // Mark conversation as read if there are unread messages
+      if (conversation.unreadCount > 0) {
+        try {
+          await markConversationAsRead(conversation.user.id);
+          
+          // Update the conversation in the list to clear unread count
+          setConversations(prev => 
+            prev.map(conv => 
+              conv.id === conversation.id 
+                ? { ...conv, unreadCount: 0 }
+                : conv
+            )
+          );
+        } catch (error) {
+          console.error('Failed to mark conversation as read:', error);
+        }
+      }
+      
       if (isMobile) {
         console.log('Opening mobile chat');
         setMobileChatOpen(true);
@@ -373,6 +392,7 @@ export default function MessagesPage() {
             timestamp: "",
             senderId: ""
           },
+          unreadCount: 0,
           messages: []
         };
         
@@ -699,13 +719,17 @@ export default function MessagesPage() {
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={conversation.user.avatar} />
-                        <AvatarFallback>{conversation.user.name.charAt(0).toUpperCase()}</AvatarFallback>
-                      </Avatar>
+                      <div className="relative">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={conversation.user.avatar} />
+                          <AvatarFallback>{conversation.user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className="font-medium text-sm truncate">{conversation.user.name}</p>
+                          <p className="font-medium text-sm truncate">
+                            {conversation.user.name}
+                          </p>
                           <span className="text-xs text-gray-500">
                             {formatTimestamp(conversation.lastMessage.timestamp)}
                           </span>

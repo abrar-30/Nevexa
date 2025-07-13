@@ -11,9 +11,10 @@ interface PostsListProps {
   onComment: (postId: string, comment: string) => void;
   currentUserId: string;
   onCreatePost?: () => void;
+  onDelete?: (postId: string) => void;
 }
 
-export function PostsList({ posts, onLike, onComment, currentUserId, onCreatePost }: PostsListProps) {
+export function PostsList({ posts, onLike, onComment, currentUserId, onCreatePost, onDelete }: PostsListProps) {
   const filteredPosts = posts
     .filter(post => post.user)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -27,6 +28,7 @@ export function PostsList({ posts, onLike, onComment, currentUserId, onCreatePos
             onLike={onLike}
             onComment={onComment}
             currentUserId={currentUserId}
+            onDelete={onDelete}
           />
         ))
       ) : (

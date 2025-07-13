@@ -23,9 +23,10 @@ interface NavbarProps {
     email: string
     avatar?: string
   }
+  unreadMessagesCount?: number
 }
 
-export function Navbar({ userRole = "general" }: NavbarProps) {
+export function Navbar({ userRole = "general", unreadMessagesCount = 0 }: NavbarProps) {
   const pathname = usePathname();
   const [user, setUser] = useState<NavbarProps["user"] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,12 +38,10 @@ export function Navbar({ userRole = "general" }: NavbarProps) {
       .finally(() => setLoading(false));
   }, []);
 
-  // Remove mock unread message count
-
   const navItems = [
     { href: "/dashboard", label: "Home", icon: Home },
     { href: "/people", label: "People", icon: Users },
-    { href: "/messages", label: "Messages", icon: MessageCircle, badge: 0 },
+    { href: "/messages", label: "Messages", icon: MessageCircle, badge: unreadMessagesCount },
   ]
 
   const handleLogout = () => {
