@@ -108,33 +108,54 @@ app.use(cors({
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(express.json({ limit: '10mb' }));
 
-// Session configuration with MongoDB store
+// Session configuration with MongoDB store - Mobile-optimized
 app.use(session({
   name: 'nevexa.session', // Explicit session name
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   proxy: true, // Important for proxied environments like Render
+  rolling: true, // Reset expiration on each request - important for mobile
   store: MongoStore.create({ 
     mongoUrl: process.env.MONGODB_URI,
     collectionName: 'sessions',
-    ttl: 24 * 60 * 60, // 1 day in seconds
-    touchAfter: 24 * 3600 // lazy session update
+    ttl: 7 * 24 * 60 * 60, // 7 days in seconds (longer for mobile)
+    touchAfter: 60 * 60 // Update session every hour instead of daily
   }),
   cookie: {
     httpOnly: true,
     sameSite: actuallyProduction ? 'none' : 'lax', // Use 'none' only in production
     secure: actuallyProduction, // Only secure in production
-    maxAge: 24 * 60 * 60 * 1000, // 1 day
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (longer for mobile users)
     domain: actuallyProduction ? undefined : undefined // Let browser handle domain
   }
 }));
+
+// Mobile detection and session handling middleware
+app.use((req, res, next) => {
+  // Detect mobile browsers
+  const userAgent = req.headers['user-agent'] || '';
+  const isMobile = /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+  
+  // Add mobile flag to request
+  req.isMobile = isMobile;
+  
+  // For mobile browsers, extend session on each authenticated request
+  if (isMobile && req.isAuthenticated && req.isAuthenticated() && req.session) {
+    // Reset session expiration for mobile users on each request
+    req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+    req.session.touch(); // Update session timestamp
+  }
+  
+  next();
+});
 
 // Debug middleware to check session and cookies
 app.use((req, res, next) => {
   if (req.url.includes('/api/')) {
     console.log('🔐 Request URL:', req.url);
     console.log('🔐 Session ID:', req.sessionID);
+    console.log('🔐 Is Mobile:', req.isMobile);
     console.log('🔐 Session data:', JSON.stringify(req.session, null, 2));
     console.log('🔐 User authenticated:', req.isAuthenticated ? req.isAuthenticated() : false);
     console.log('🔐 req.user:', req.user);
@@ -364,6 +385,34 @@ app.get('/api/debug-auth', async (req, res) => {
       passportUserMatches: req.session?.passport?.user === req.user?.email
     }
   });
+});
+
+// Session refresh endpoint for mobile clients
+app.post('/api/session/refresh', (req, res) => {
+  console.log('🔄 Session refresh requested');
+  console.log('🔄 Is Mobile:', req.isMobile);
+  console.log('🔄 Session ID:', req.sessionID);
+  console.log('🔄 User authenticated:', req.isAuthenticated ? req.isAuthenticated() : false);
+  
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    // Extend session for authenticated users
+    req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+    req.session.touch();
+    
+    res.json({
+      success: true,
+      message: 'Session refreshed successfully',
+      sessionID: req.sessionID,
+      expiresAt: new Date(Date.now() + req.session.cookie.maxAge),
+      isMobile: req.isMobile
+    });
+  } else {
+    res.status(401).json({
+      success: false,
+      message: 'Not authenticated - cannot refresh session',
+      sessionID: req.sessionID
+    });
+  }
 });
 
 // Test endpoint to bypass auth and get user directly

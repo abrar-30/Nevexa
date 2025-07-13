@@ -1,6 +1,7 @@
 import { apiRequest, ApiError } from "./api"
 import type { User } from "./posts-api"
 import { performanceMonitor } from "./performance"
+import { sessionManager } from "./session-manager"
 
 export interface AuthUser extends User {
   role?: "general" | "admin"
@@ -63,8 +64,16 @@ export async function loginUser(email: string, password: string): Promise<AuthUs
       body: JSON.stringify({ email, password }),
     })
 
+    const user = response.user || (response as any)
+    
+    // Start session management for mobile users after successful login
+    if (sessionManager.isMobileDevice()) {
+      console.log("📱 Mobile user logged in, starting session management")
+      sessionManager.startSessionRefresh()
+    }
+
     stopTimer()
-    return response.user || (response as any)
+    return user
   } catch (error) {
     stopTimer()
     console.error("Failed to login:", error)
@@ -100,6 +109,9 @@ export async function logoutUser(): Promise<void> {
   const stopTimer = performanceMonitor.startTimer("logoutUser")
   
   try {
+    // Stop session management before logout
+    sessionManager.stopSessionRefresh()
+    
     await apiRequest("/auth/logout", {
       method: "POST",
     })
