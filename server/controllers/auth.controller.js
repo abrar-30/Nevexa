@@ -39,7 +39,17 @@ exports.login = (req, res, next) => {
     if (!user) return res.status(401).json({ error: info.message });
     req.logIn(user, (err) => {
       if (err) return next(err);
-      res.json({ message: 'Login successful', user: { _id: user._id, name: user.name, email: user.email, avatar: user.avatar } });
+      
+      // Debug: Log session info after login
+      console.log('🔐 Login successful for user:', user.email);
+      console.log('🔐 Session ID after login:', req.sessionID);
+      console.log('🔐 Session data:', req.session);
+      console.log('🔐 User authenticated:', req.isAuthenticated());
+      
+      res.json({ 
+        message: 'Login successful', 
+        user: { _id: user._id, name: user.name, email: user.email, avatar: user.avatar } 
+      });
     });
   })(req, res, next);
 };

@@ -53,7 +53,10 @@ app.use(cors({
       return callback(new Error(`CORS not allowed for ${origin}`), false);
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Set-Cookie']
 }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: '10mb' })); // Add size limit
@@ -85,7 +88,18 @@ app.use((req, res, next) => {
   console.log('🔍 Session exists:', !!req.session);
   console.log('🔍 User authenticated:', req.isAuthenticated ? req.isAuthenticated() : false);
   console.log('🔍 Cookies:', req.headers.cookie);
+  console.log('🔍 Origin:', req.headers.origin);
   console.log('---');
+  next();
+});
+
+// Additional middleware for cross-origin cookie handling
+app.use((req, res, next) => {
+  // Set additional headers for cross-origin requests
+  if (process.env.NODE_ENV === 'production') {
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Vary', 'Origin');
+  }
   next();
 });
 
