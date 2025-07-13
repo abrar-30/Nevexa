@@ -65,11 +65,15 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   proxy: true,
-  store: MongoStore.create({ mongoUrl: process.env.MONGODB_URI }),
+  store: MongoStore.create({ 
+    mongoUrl: process.env.MONGODB_URI,
+    collectionName: 'sessions'
+  }),
   cookie: {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // ✅ 'none' for cross-origin in production
     secure: process.env.NODE_ENV === 'production', // Secure cookies in production only
+    maxAge: 24 * 60 * 60 * 1000 // 1 day
   }
 }));
 
