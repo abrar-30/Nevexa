@@ -36,8 +36,23 @@ if (!process.env.SESSION_SECRET) {
 // Add compression middleware for better performance
 app.use(compression());
 
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://nevexa.vercel.app',
+  'https://nevexa-git-main-abrar-30s-projects.vercel.app'
+];
 app.use(cors({
-  origin: ['http://localhost:3000', 'nevexa-git-main-abrar-30s-projects.vercel.app','https://nevexa.vercel.app'], // Support both ports
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      console.log(`❌ Blocked by CORS: ${origin}`);
+      return callback(new Error(`CORS not allowed for ${origin}`), false);
+    }
+  },
   credentials: true
 }));
 app.use(express.urlencoded({ extended: true }));
