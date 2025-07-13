@@ -25,7 +25,7 @@ export async function checkNetworkConnectivity(): Promise<boolean> {
   try {
     const response = await fetch(`${API_BASE_URL}/health`, {
       method: "GET",
-      timeout: 5000,
+      timeout: 2000, // Reduced from 5000ms
     } as any)
     return response.ok
   } catch {
@@ -34,7 +34,7 @@ export async function checkNetworkConnectivity(): Promise<boolean> {
 }
 
 // Retry mechanism
-async function withRetry<T>(operation: () => Promise<T>, maxRetries = 3, delay = 1000): Promise<T> {
+async function withRetry<T>(operation: () => Promise<T>, maxRetries = 2, delay = 500): Promise<T> { // Reduced retries and delay
   let lastError: Error
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -99,7 +99,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       console.log(`Making API request to: ${url}`)
 
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000)
+      const timeoutId = setTimeout(() => controller.abort(), 5000) // Reduced from 10000ms
 
       const response = await fetch(url, {
         ...config,
@@ -157,7 +157,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     }
   }
 
-  return withRetry(operation, 3, 1000)
+  return withRetry(operation, 2, 500) // Reduced retries and delay
 }
 
 export { apiRequest, ApiError, API_BASE_URL, withRetry }

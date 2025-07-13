@@ -25,15 +25,17 @@ const socketHandler = (io) => {
         // Emit to receiver
         io.to(String(receiver)).emit("receive-message", {
           sender,
+          receiver,
           content,
-          timestamp: msg.createdAt,
+          createdAt: msg.createdAt,
           _id: msg._id
         });
         // Emit to sender as well
         io.to(String(sender)).emit("receive-message", {
           sender,
+          receiver,
           content,
-          timestamp: msg.createdAt,
+          createdAt: msg.createdAt,
           _id: msg._id
         });
         console.log(`[Socket] Emitted receive-message to receiver room: ${receiver} and sender room: ${sender}`);

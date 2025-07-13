@@ -33,6 +33,9 @@
   "cloudinary": "^1.41.3",
   
     
+  "compression": "^1.8.0",
+  
+    
   "connect-mongo": "^5.1.0",
   
     

@@ -1,43 +1,69 @@
 const Message = require("../models/message.model");
 const User = require("../models/user.model");
+const mongoose = require("mongoose");
 
 // Fetch chat history between two users
 const getMessages = async (req, res) => {
-  const { user1, user2 } = req.query;
-  if (!user1 || !user2) {
-    return res.status(400).json({ error: 'user1 and user2 are required' });
-  }
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const { user1, user2 } = req.query;
+    if (!user1 || !user2) {
+      return res.status(400).json({ error: 'user1 and user2 are required' });
+    }
+    
+    // Ensure the current user is one of the participants
+    const currentUserId = req.user._id.toString();
+    if (currentUserId !== user1 && currentUserId !== user2) {
+      return res.status(403).json({ error: 'You can only view your own conversations' });
+    }
+    
     const messages = await Message.find({
       $or: [
         { sender: user1, receiver: user2 },
         { sender: user2, receiver: user1 }
       ]
-    }).sort({ timestamp: 1 }); // oldest first
+    }).sort({ createdAt: 1 }); // oldest first
     res.json(messages);
   } catch (err) {
+    console.error('Get messages error:', err);
     res.status(500).json({ error: 'Failed to fetch messages' });
   }
 };
 
 const sendMessage = async (req, res) => {
-  const sender = req.user._id;
-  const { receiver, content } = req.body;
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const sender = req.user._id;
+    const { receiver, content } = req.body;
 
-  const message = await Message.create({ sender, receiver, content });
+    if (!receiver || !content) {
+      return res.status(400).json({ error: 'Receiver and content are required' });
+    }
 
-  // Optionally update chat model here
+    const message = await Message.create({ sender, receiver, content });
 
-  res.status(201).json(message);
+    res.status(201).json(message);
+  } catch (err) {
+    console.error('Send message error:', err);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
 };
 
 // Get all conversations for the current user
 const getConversations = async (req, res) => {
-  const userId = req.user._id.toString();
-  const Message = require("../models/message.model");
-  const User = require("../models/user.model");
-
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const userId = String(req.user._id);
+
     // Find all users this user has messaged or received messages from
     const participants = await Message.aggregate([
       {
@@ -49,35 +75,39 @@ const getConversations = async (req, res) => {
         }
       },
       {
-        $project: {
+        $addFields: {
           otherUser: {
             $cond: [
-              { $eq: ["$sender", userId] }, "$receiver", "$sender"
+              { $eq: ["$sender", userId] }, 
+              "$receiver", 
+              "$sender"
             ]
-          },
-          content: 1,
-          sender: 1,
-          receiver: 1,
-          createdAt: 1
+          }
         }
+      },
+      {
+        $sort: { createdAt: -1 }
       },
       {
         $group: {
           _id: "$otherUser",
-          lastMessage: { $last: "$$ROOT" }
+          lastMessage: { $first: "$$ROOT" }
         }
       }
     ]);
 
     // For each participant, get user info and all messages
     const conversations = await Promise.all(participants.map(async (p) => {
-      const user = await User.findById(p._id).select("_id name avatar");
+      const user = await User.findById(new mongoose.Types.ObjectId(p._id)).select("_id name avatar");
       const messages = await Message.find({
         $or: [
           { sender: userId, receiver: p._id },
           { sender: p._id, receiver: userId }
         ]
       }).sort({ createdAt: 1 });
+      
+
+      
       return {
         id: p._id,
         user: user ? { id: user._id, name: user.name, avatar: user.avatar } : null,
@@ -96,8 +126,10 @@ const getConversations = async (req, res) => {
       };
     }));
 
+
     res.json({ conversations });
   } catch (err) {
+    console.error('Get conversations error:', err);
     res.status(500).json({ error: "Failed to fetch conversations" });
   }
 };

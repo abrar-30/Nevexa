@@ -179,6 +179,8 @@ export function CreatePostDialog({ open, onOpenChange, onPostCreated }: CreatePo
             </div>
           )}
 
+
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancel

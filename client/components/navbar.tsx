@@ -91,8 +91,8 @@ export function Navbar({ userRole = "general" }: NavbarProps) {
                     <div className="w-8 h-8 flex items-center justify-center text-xs text-gray-400">...</div>
                   ) : (
                     <>
-                      <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name} />
-                      <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                  <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name} />
+                  <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
                     </>
                   )}
                 </Avatar>

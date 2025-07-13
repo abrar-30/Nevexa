@@ -7,12 +7,16 @@ const getMe = async (req, res) => {
   }
   const User = require('../models/user.model');
   try {
+    // Optimize the query by selecting only necessary fields and limiting population
     const user = await User.findById(req.user._id)
       .populate('followers', 'name email avatar')
       .populate('following', 'name email avatar')
-      .select('-hash -salt');
+      .select('-hash -salt')
+      .lean(); // Use lean() for better performance when you don't need Mongoose document methods
+    
     res.json(user);
   } catch (err) {
+    console.error('Error fetching user profile:', err);
     res.status(500).json({ error: 'Failed to fetch user profile.' });
   }
 };
