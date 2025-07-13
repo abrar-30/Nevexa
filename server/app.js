@@ -78,6 +78,17 @@ app.use(session({
 }));
 
 
+// Debug middleware to check session and cookies
+app.use((req, res, next) => {
+  console.log('🔍 Request URL:', req.url);
+  console.log('🔍 Session ID:', req.sessionID);
+  console.log('🔍 Session exists:', !!req.session);
+  console.log('🔍 User authenticated:', req.isAuthenticated ? req.isAuthenticated() : false);
+  console.log('🔍 Cookies:', req.headers.cookie);
+  console.log('---');
+  next();
+});
+
 app.use(passport.initialize());
 app.use(passport.session());
 
