@@ -39,7 +39,7 @@ export default function RegisterPage() {
         email: formData.email,
         password: formData.password,
       })
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },

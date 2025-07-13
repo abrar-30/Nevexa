@@ -1,6 +1,5 @@
 // API configuration and helper functions
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL 
 interface ApiResponse<T> {
   success?: boolean
   data?: T
@@ -19,6 +18,8 @@ class ApiError extends Error {
     this.name = "ApiError"
   }
 }
+
+console.log('DEBUG: NEXT_PUBLIC_API_URL =', process.env.NEXT_PUBLIC_API_URL);
 
 // Network connectivity checker
 export async function checkNetworkConnectivity(): Promise<boolean> {

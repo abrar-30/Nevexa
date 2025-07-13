@@ -21,7 +21,8 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+      console.log(API_BASE_URL);
       const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
