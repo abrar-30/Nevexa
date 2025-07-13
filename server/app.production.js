@@ -25,6 +25,24 @@ const MongoStore = require('connect-mongo');
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Debug environment
+console.log('🌍 Environment Variables:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('isProduction:', isProduction);
+console.log('PORT:', process.env.PORT);
+console.log('MONGODB_URI exists:', !!process.env.MONGODB_URI);
+console.log('SESSION_SECRET exists:', !!process.env.SESSION_SECRET);
+
+// Force production mode if running on Render (even if NODE_ENV is not set correctly)
+const isRenderDeployment = process.env.RENDER || process.env.RENDER_SERVICE_ID;
+const forceProduction = isRenderDeployment || process.env.FORCE_PRODUCTION === 'true';
+const actuallyProduction = isProduction || forceProduction;
+
+console.log('🚀 Deployment Detection:');
+console.log('isRenderDeployment:', !!isRenderDeployment);
+console.log('forceProduction:', forceProduction);
+console.log('actuallyProduction:', actuallyProduction);
+
 // Connect to MongoDB
 if (process.env.MONGODB_URI) {
   connectDB().catch(err => {
@@ -105,10 +123,10 @@ app.use(session({
   }),
   cookie: {
     httpOnly: true,
-    sameSite: isProduction ? 'none' : 'lax', // Use 'none' only in production
-    secure: isProduction, // Only secure in production
+    sameSite: actuallyProduction ? 'none' : 'lax', // Use 'none' only in production
+    secure: actuallyProduction, // Only secure in production
     maxAge: 24 * 60 * 60 * 1000, // 1 day
-    domain: isProduction ? undefined : undefined // Let browser handle domain
+    domain: actuallyProduction ? undefined : undefined // Let browser handle domain
   }
 }));
 
@@ -253,7 +271,8 @@ app.get('/api/session-test', (req, res) => {
     cookies: req.headers.cookie,
     userAgent: req.headers['user-agent'],
     environment: process.env.NODE_ENV,
-    isProduction: isProduction
+    isProduction: isProduction,
+    actuallyProduction: actuallyProduction
   });
 });
 
@@ -262,8 +281,8 @@ app.get('/api/cookie-test', (req, res) => {
   // Set a test cookie
   res.cookie('test-cookie', 'test-value', {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
+    secure: actuallyProduction,
+    sameSite: actuallyProduction ? 'none' : 'lax',
     maxAge: 60000 // 1 minute
   });
   
@@ -277,7 +296,9 @@ app.get('/api/cookie-test', (req, res) => {
 // Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Server running in ${isProduction ? 'production' : 'development'} mode on port ${PORT}`);
+  console.log(`✅ Server running in ${actuallyProduction ? 'production' : 'development'} mode on port ${PORT}`);
+  console.log(`🔧 Actual mode: ${actuallyProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
+  console.log(`🍪 Cookies will be: ${actuallyProduction ? 'secure with sameSite=none' : 'non-secure with sameSite=lax'}`);
 });
 
 // Handle unhandled promise rejections
