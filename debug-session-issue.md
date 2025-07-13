@@ -5,6 +5,20 @@ You have **two session cookies** which is causing authentication confusion:
 1. `connect.sid` (old session)
 2. `nevexa.session` (new session with user data)
 
+## NEW DEBUG ENDPOINTS ADDED
+
+### 1. Debug Authentication
+```
+https://nevexa.onrender.com/api/debug-auth
+```
+This will show detailed authentication state and check if user exists in database.
+
+### 2. Test User Directly (Bypass Auth)
+```
+https://nevexa.onrender.com/api/test-user/abrarchhapavala05@gmail.com
+```
+This bypasses authentication to verify the user exists and the controller works.
+
 ## Immediate Steps to Test
 
 ### Step 1: Clear All Cookies

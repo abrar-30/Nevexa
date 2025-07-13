@@ -165,8 +165,29 @@ app.use((req, res, next) => {
 app.use(passport.initialize());
 app.use(passport.session());
 passport.use(User.createStrategy());
-passport.serializeUser(User.serializeUser());
-passport.deserializeUser(User.deserializeUser());
+
+// Custom serialization with debugging
+passport.serializeUser((user, done) => {
+  console.log('🔐 Serializing user:', user.email);
+  done(null, user.email); // Store email in session
+});
+
+passport.deserializeUser(async (email, done) => {
+  console.log('🔐 Deserializing user with email:', email);
+  try {
+    const user = await User.findOne({ email: email });
+    if (user) {
+      console.log('✅ User found during deserialization:', user.email);
+      done(null, user);
+    } else {
+      console.log('❌ User not found during deserialization for email:', email);
+      done(null, false);
+    }
+  } catch (error) {
+    console.error('❌ Error during user deserialization:', error);
+    done(error, null);
+  }
+});
 
 // API Routes
 const authRoutes = require('./routes/auth.route');
@@ -304,6 +325,70 @@ app.get('/api/clear-cookies', (req, res) => {
       clearedCookies: ['connect.sid', 'nevexa.session', 'test-cookie']
     });
   });
+});
+
+// Debug authentication endpoint
+app.get('/api/debug-auth', async (req, res) => {
+  console.log('🔍 Debug Auth - Full Request Analysis');
+  console.log('🔍 Session ID:', req.sessionID);
+  console.log('🔍 Session:', JSON.stringify(req.session, null, 2));
+  console.log('🔍 req.user:', req.user);
+  console.log('🔍 req.isAuthenticated():', req.isAuthenticated ? req.isAuthenticated() : 'function not available');
+  console.log('🔍 Cookies:', req.headers.cookie);
+  
+  // Check if user exists in database
+  let userInDB = null;
+  if (req.session?.passport?.user) {
+    try {
+      userInDB = await User.findOne({ email: req.session.passport.user });
+      console.log('🔍 User found in DB:', !!userInDB);
+    } catch (error) {
+      console.log('🔍 Error finding user in DB:', error.message);
+    }
+  }
+  
+  res.json({
+    sessionID: req.sessionID,
+    session: req.session,
+    user: req.user,
+    isAuthenticated: req.isAuthenticated ? req.isAuthenticated() : false,
+    cookies: req.headers.cookie,
+    passportUser: req.session?.passport?.user,
+    userExistsInDB: !!userInDB,
+    userFromDB: userInDB ? { email: userInDB.email, name: userInDB.name } : null,
+    analysis: {
+      hasSession: !!req.session,
+      hasPassportData: !!(req.session?.passport),
+      hasUser: !!req.user,
+      hasIsAuthenticatedFunction: !!req.isAuthenticated,
+      passportUserMatches: req.session?.passport?.user === req.user?.email
+    }
+  });
+});
+
+// Test endpoint to bypass auth and get user directly
+app.get('/api/test-user/:email', async (req, res) => {
+  try {
+    const user = await User.findOne({ email: req.params.email })
+      .populate('followers', 'name email avatar')
+      .populate('following', 'name email avatar')
+      .select('-hash -salt')
+      .lean();
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ 
+      message: 'User found (bypassing auth)',
+      user: user 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Database error',
+      details: error.message 
+    });
+  }
 });
 
 // Start server
