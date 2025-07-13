@@ -104,11 +104,6 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
         headers: config.headers
       })
       
-      // Check if we're on mobile
-      const isMobile = typeof window !== 'undefined' && 
-        /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-      console.log(`📱 Client is mobile: ${isMobile}`)
-
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000) // Reduced from 10000ms
 
