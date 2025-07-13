@@ -93,8 +93,8 @@ app.use(session({
   }),
   cookie: {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: actuallyProduction,
+    sameSite: actuallyProduction ? 'none' : 'lax', // Use 'none' for cross-domain in production
+    secure: actuallyProduction, // Must be true for 'none' sameSite
     maxAge: 7 * 24 * 60 * 60 * 1000,
     domain: undefined,
     path: '/'
@@ -117,6 +117,12 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Vary', 'Origin');
+  
+  // Additional headers for cross-domain cookies
+  if (actuallyProduction) {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || 'https://nevexa.vercel.app');
+  }
+  
   if (req.method === 'OPTIONS') {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Cookie');
@@ -192,6 +198,30 @@ app.get('/api/session-test', (req, res) => {
     environment: process.env.NODE_ENV,
     isProduction: isProduction,
     actuallyProduction: actuallyProduction
+  });
+});
+
+// Cookie test endpoint for cross-domain debugging
+app.get('/api/cookie-test', (req, res) => {
+  // Set a test cookie
+  res.cookie('test-cookie', 'test-value-' + Date.now(), {
+    httpOnly: true,
+    secure: actuallyProduction,
+    sameSite: actuallyProduction ? 'none' : 'lax',
+    maxAge: 60000 // 1 minute
+  });
+  
+  res.json({
+    message: 'Test cookie set',
+    receivedCookies: req.headers.cookie,
+    environment: process.env.NODE_ENV,
+    actuallyProduction: actuallyProduction,
+    origin: req.headers.origin,
+    cookieSettings: {
+      sameSite: actuallyProduction ? 'none' : 'lax',
+      secure: actuallyProduction,
+      httpOnly: true
+    }
   });
 });
 

@@ -77,7 +77,7 @@ app.use(session({
   }),
   cookie: {
     httpOnly: true,
-    sameSite: 'lax', // 🧪 TEMPORARY: Testing with 'lax' to see if 'none' is the issue
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Use 'none' for cross-domain in production
     secure: process.env.NODE_ENV === 'production', // Secure cookies in production only
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days (longer for mobile users)
   }
