@@ -37,7 +37,7 @@ if (!process.env.SESSION_SECRET) {
 app.use(compression());
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001,https://v0-nevexa-git-main-abrar-30s-projects.vercel.app/'], // Support both ports
+  origin: ['http://localhost:3000', 'nevexa-git-main-abrar-30s-projects.vercel.app'], // Support both ports
   credentials: true
 }));
 app.use(express.urlencoded({ extended: true }));
