@@ -132,20 +132,14 @@ app.use(session({
 
 // Debug middleware to check session and cookies
 app.use((req, res, next) => {
-  console.log('🔐 Request URL:', req.url);
-  console.log('🔐 Session ID:', req.sessionID);
-  console.log('🔐 Session data:', req.session);
-  console.log('🔐 User authenticated:', req.isAuthenticated ? req.isAuthenticated() : false);
-  
-  // Check if we're about to set a cookie in the response
-  const originalSetHeader = res.setHeader;
-  res.setHeader = function(name, value) {
-    if (name === 'Set-Cookie') {
-      console.log('🔐 Response headers will include Set-Cookie');
-      console.log('🔐 Cookie that should be set:', value);
-    }
-    return originalSetHeader.call(this, name, value);
-  };
+  if (req.url.includes('/api/')) {
+    console.log('🔐 Request URL:', req.url);
+    console.log('🔐 Session ID:', req.sessionID);
+    console.log('🔐 Session data:', JSON.stringify(req.session, null, 2));
+    console.log('🔐 User authenticated:', req.isAuthenticated ? req.isAuthenticated() : false);
+    console.log('🔐 req.user:', req.user);
+    console.log('🔐 All cookies:', req.headers.cookie);
+  }
   
   next();
 });
@@ -290,6 +284,25 @@ app.get('/api/cookie-test', (req, res) => {
     message: 'Test cookie set',
     receivedCookies: req.headers.cookie,
     environment: process.env.NODE_ENV
+  });
+});
+
+// Clear all cookies endpoint
+app.get('/api/clear-cookies', (req, res) => {
+  // Clear all possible session cookies
+  res.clearCookie('connect.sid');
+  res.clearCookie('nevexa.session');
+  res.clearCookie('test-cookie');
+  
+  // Also destroy the session
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Error destroying session:', err);
+    }
+    res.json({
+      message: 'All cookies cleared and session destroyed',
+      clearedCookies: ['connect.sid', 'nevexa.session', 'test-cookie']
+    });
   });
 });
 
