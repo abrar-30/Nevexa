@@ -47,10 +47,6 @@ exports.login = (req, res, next) => {
       console.log('🔐 User authenticated:', req.isAuthenticated());
       console.log('🔐 Response headers will include Set-Cookie');
       
-      // Manually set cookie header for debugging
-      const sessionCookie = `nevexa.session=${req.sessionID}; Path=/; HttpOnly; ${process.env.NODE_ENV === 'production' ? 'Secure;' : ''} SameSite=lax; Max-Age=${24 * 60 * 60}`;
-      console.log('🔐 Cookie that should be set:', sessionCookie);
-      
       res.json({ 
         message: 'Login successful', 
         user: { _id: user._id, name: user.name, email: user.email, avatar: user.avatar } 

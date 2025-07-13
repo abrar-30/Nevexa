@@ -50,7 +50,10 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'https://nevexa.vercel.app',
-  'https://nevexa-git-main-abrar-30s-projects.vercel.app'
+  'https://nevexa-git-main-abrar-30s-projects.vercel.app',
+  'https://nevexa-abrar-30s-projects.vercel.app',
+  // Add any other Vercel preview URLs
+  /^https:\/\/nevexa-.*\.vercel\.app$/
   // Add any other production domains here
 ];
 
@@ -58,7 +61,19 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, curl, postman)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    
+    // Check if origin is in the allowed list or matches regex patterns
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return allowedOrigin === origin;
+      } else if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
+      console.log(`✅ CORS allowed for: ${origin}`);
       return callback(null, true);
     } else {
       console.log(`❌ Blocked by CORS: ${origin}`);
@@ -77,6 +92,7 @@ app.use(express.json({ limit: '10mb' }));
 
 // Session configuration with MongoDB store
 app.use(session({
+  name: 'nevexa.session', // Explicit session name
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
@@ -84,13 +100,15 @@ app.use(session({
   store: MongoStore.create({ 
     mongoUrl: process.env.MONGODB_URI,
     collectionName: 'sessions',
-    ttl: 24 * 60 * 60 // 1 day in seconds
+    ttl: 24 * 60 * 60, // 1 day in seconds
+    touchAfter: 24 * 3600 // lazy session update
   }),
   cookie: {
     httpOnly: true,
-    sameSite: 'none', // Required for cross-site cookies
-    secure: true,     // Must be true when sameSite is 'none'
-    maxAge: 24 * 60 * 60 * 1000 // 1 day
+    sameSite: isProduction ? 'none' : 'lax', // Use 'none' only in production
+    secure: isProduction, // Only secure in production
+    maxAge: 24 * 60 * 60 * 1000, // 1 day
+    domain: isProduction ? undefined : undefined // Let browser handle domain
   }
 }));
 
@@ -119,6 +137,15 @@ app.use((req, res, next) => {
   // ALWAYS set these headers for cross-domain cookies
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Vary', 'Origin');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.header('Access-Control-Max-Age', '86400'); // 24 hours
+    return res.sendStatus(200);
+  }
+  
   next();
 });
 
@@ -148,17 +175,29 @@ app.use('/api/comments', commentRoutes);
 
 // Authentication test endpoint
 app.get('/api/auth-test', (req, res) => {
+  console.log('🔍 Auth test - Session ID:', req.sessionID);
+  console.log('🔍 Auth test - Session:', req.session);
+  console.log('🔍 Auth test - User:', req.user);
+  console.log('🔍 Auth test - isAuthenticated():', req.isAuthenticated ? req.isAuthenticated() : 'function not available');
+  console.log('🔍 Auth test - Headers:', req.headers);
+  console.log('🔍 Auth test - Cookies:', req.headers.cookie);
+  
   if (req.isAuthenticated && req.isAuthenticated()) {
     res.json({ 
       authenticated: true, 
       user: req.user,
-      session: req.session
+      session: req.session,
+      sessionID: req.sessionID
     });
   } else {
     res.json({ 
       authenticated: false,
       sessionExists: !!req.session,
-      sessionID: req.sessionID
+      sessionID: req.sessionID,
+      user: req.user,
+      session: req.session,
+      headers: req.headers,
+      cookies: req.headers.cookie
     });
   }
 });
@@ -191,6 +230,46 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV
+  });
+});
+
+// Session test endpoint
+app.get('/api/session-test', (req, res) => {
+  console.log('🧪 Session test - Headers:', req.headers);
+  console.log('🧪 Session test - Session ID:', req.sessionID);
+  console.log('🧪 Session test - Session:', req.session);
+  
+  // Initialize session counter if it doesn't exist
+  if (!req.session.views) {
+    req.session.views = 0;
+  }
+  req.session.views++;
+  
+  res.json({
+    sessionID: req.sessionID,
+    views: req.session.views,
+    session: req.session,
+    cookies: req.headers.cookie,
+    userAgent: req.headers['user-agent'],
+    environment: process.env.NODE_ENV,
+    isProduction: isProduction
+  });
+});
+
+// Cookie test endpoint
+app.get('/api/cookie-test', (req, res) => {
+  // Set a test cookie
+  res.cookie('test-cookie', 'test-value', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 60000 // 1 minute
+  });
+  
+  res.json({
+    message: 'Test cookie set',
+    receivedCookies: req.headers.cookie,
     environment: process.env.NODE_ENV
   });
 });
