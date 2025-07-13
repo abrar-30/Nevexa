@@ -1,5 +1,5 @@
 // API configuration and helper functions
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000' 
 interface ApiResponse<T> {
   success?: boolean
   data?: T
@@ -98,6 +98,16 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const operation = async (): Promise<T> => {
     try {
       console.log(`Making API request to: ${url}`)
+      console.log(`Request config:`, {
+        method: config.method || 'GET',
+        credentials: config.credentials,
+        headers: config.headers
+      })
+      
+      // Check if we're on mobile
+      const isMobile = typeof window !== 'undefined' && 
+        /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      console.log(`📱 Client is mobile: ${isMobile}`)
 
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000) // Reduced from 10000ms
@@ -110,6 +120,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       clearTimeout(timeoutId)
 
       console.log(`API response status: ${response.status} for ${url}`)
+      console.log(`Response headers:`, Object.fromEntries(response.headers.entries()))
 
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`

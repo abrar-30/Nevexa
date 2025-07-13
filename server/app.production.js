@@ -110,7 +110,7 @@ app.use(express.json({ limit: '10mb' }));
 
 // Session configuration with MongoDB store - Mobile-optimized
 app.use(session({
-  name: 'nevexa.session', // Explicit session name
+  name: 'connect.sid', // Use standard session name for better compatibility
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
@@ -124,10 +124,12 @@ app.use(session({
   }),
   cookie: {
     httpOnly: true,
-    sameSite: actuallyProduction ? 'none' : 'lax', // Use 'none' only in production
+    // Try 'lax' for mobile compatibility - many mobile browsers have issues with 'none'
+    sameSite: 'lax', // Changed from 'none' to 'lax' for better mobile compatibility
     secure: actuallyProduction, // Only secure in production
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (longer for mobile users)
-    domain: actuallyProduction ? undefined : undefined // Let browser handle domain
+    domain: undefined, // Let browser handle domain automatically
+    path: '/' // Explicit path
   }
 }));
 
@@ -140,11 +142,17 @@ app.use((req, res, next) => {
   // Add mobile flag to request
   req.isMobile = isMobile;
   
-  // For mobile browsers, extend session on each authenticated request
-  if (isMobile && req.isAuthenticated && req.isAuthenticated() && req.session) {
-    // Reset session expiration for mobile users on each request
+  // For mobile browsers, adjust cookie settings dynamically
+  if (isMobile && req.session) {
+    // For mobile, try more permissive cookie settings
+    req.session.cookie.sameSite = 'lax'; // More compatible with mobile browsers
+    req.session.cookie.secure = actuallyProduction; // Keep secure in production
     req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
-    req.session.touch(); // Update session timestamp
+    
+    // If user is authenticated, extend session
+    if (req.isAuthenticated && req.isAuthenticated()) {
+      req.session.touch(); // Update session timestamp
+    }
   }
   
   next();
@@ -171,10 +179,17 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Vary', 'Origin');
   
+  // Additional headers for mobile cookie compatibility
+  if (req.isMobile) {
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', '0');
+  }
+  
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Cookie');
     res.header('Access-Control-Max-Age', '86400'); // 24 hours
     return res.sendStatus(200);
   }
@@ -314,27 +329,60 @@ app.get('/api/session-test', (req, res) => {
 
 // Cookie test endpoint
 app.get('/api/cookie-test', (req, res) => {
-  // Set a test cookie
-  res.cookie('test-cookie', 'test-value', {
+  console.log('🍪 Cookie test - User Agent:', req.headers['user-agent']);
+  console.log('🍪 Cookie test - Is Mobile:', req.isMobile);
+  console.log('🍪 Cookie test - Received Cookies:', req.headers.cookie);
+  console.log('🍪 Cookie test - Origin:', req.headers.origin);
+  
+  // Set multiple test cookies with different configurations
+  res.cookie('test-cookie-lax', 'test-value-lax', {
     httpOnly: true,
     secure: actuallyProduction,
-    sameSite: actuallyProduction ? 'none' : 'lax',
+    sameSite: 'lax',
+    maxAge: 60000 // 1 minute
+  });
+  
+  res.cookie('test-cookie-none', 'test-value-none', {
+    httpOnly: true,
+    secure: actuallyProduction,
+    sameSite: 'none',
+    maxAge: 60000 // 1 minute
+  });
+  
+  res.cookie('test-cookie-strict', 'test-value-strict', {
+    httpOnly: true,
+    secure: actuallyProduction,
+    sameSite: 'strict',
     maxAge: 60000 // 1 minute
   });
   
   res.json({
-    message: 'Test cookie set',
+    message: 'Test cookies set with different sameSite values',
     receivedCookies: req.headers.cookie,
-    environment: process.env.NODE_ENV
+    environment: process.env.NODE_ENV,
+    isMobile: req.isMobile,
+    actuallyProduction: actuallyProduction,
+    userAgent: req.headers['user-agent'],
+    origin: req.headers.origin,
+    cookiesSet: [
+      { name: 'test-cookie-lax', sameSite: 'lax' },
+      { name: 'test-cookie-none', sameSite: 'none' },
+      { name: 'test-cookie-strict', sameSite: 'strict' }
+    ]
   });
 });
 
 // Clear all cookies endpoint
 app.get('/api/clear-cookies', (req, res) => {
-  // Clear all possible session cookies
+  // Clear all possible session cookies with different configurations
   res.clearCookie('connect.sid');
+  res.clearCookie('connect.sid', { path: '/' });
+  res.clearCookie('connect.sid', { path: '/', domain: undefined });
   res.clearCookie('nevexa.session');
   res.clearCookie('test-cookie');
+  res.clearCookie('test-cookie-lax');
+  res.clearCookie('test-cookie-none');
+  res.clearCookie('test-cookie-strict');
   
   // Also destroy the session
   req.session.destroy((err) => {
@@ -343,8 +391,45 @@ app.get('/api/clear-cookies', (req, res) => {
     }
     res.json({
       message: 'All cookies cleared and session destroyed',
-      clearedCookies: ['connect.sid', 'nevexa.session', 'test-cookie']
+      clearedCookies: ['connect.sid', 'nevexa.session', 'test-cookie', 'test-cookie-lax', 'test-cookie-none', 'test-cookie-strict']
     });
+  });
+});
+
+// Mobile cookie debugging endpoint
+app.get('/api/mobile-debug', (req, res) => {
+  console.log('📱 Mobile Debug - Full Analysis');
+  console.log('📱 User Agent:', req.headers['user-agent']);
+  console.log('📱 Is Mobile:', req.isMobile);
+  console.log('📱 Origin:', req.headers.origin);
+  console.log('📱 Referer:', req.headers.referer);
+  console.log('📱 All Headers:', req.headers);
+  console.log('📱 Session ID:', req.sessionID);
+  console.log('📱 Session:', JSON.stringify(req.session, null, 2));
+  console.log('📱 Cookies Received:', req.headers.cookie);
+  
+  // Set a test session value
+  if (!req.session.testValue) {
+    req.session.testValue = 'mobile-test-' + Date.now();
+  }
+  
+  res.json({
+    message: 'Mobile debugging info',
+    isMobile: req.isMobile,
+    userAgent: req.headers['user-agent'],
+    origin: req.headers.origin,
+    sessionID: req.sessionID,
+    session: req.session,
+    cookiesReceived: req.headers.cookie,
+    testValue: req.session.testValue,
+    environment: process.env.NODE_ENV,
+    actuallyProduction: actuallyProduction,
+    cookieSettings: {
+      sameSite: req.session.cookie.sameSite,
+      secure: req.session.cookie.secure,
+      httpOnly: req.session.cookie.httpOnly,
+      maxAge: req.session.cookie.maxAge
+    }
   });
 });
 
