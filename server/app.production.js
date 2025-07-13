@@ -1,4 +1,10 @@
 // Production-ready server configuration
+// Required environment variables:
+// - MONGODB_URI: MongoDB connection string
+// - SESSION_SECRET: Secret for session encryption
+// - NODE_ENV: Set to 'production'
+// - PORT: Port to run the server (defaults to 5000)
+
 const path = require('path');
 const dotenv = require('dotenv');
 dotenv.config();
@@ -14,7 +20,6 @@ const User = require('./models/user.model');
 const errorHandler = require('./middleware/error.middleware');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
-const corsConfig = require('./cors.fix');
 
 // Initialize Express app
 const app = express();
@@ -22,29 +27,55 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 // Connect to MongoDB
 if (process.env.MONGODB_URI) {
-  connectDB();
+  connectDB().catch(err => {
+    console.error('❌ Failed to connect to MongoDB:', err.message);
+    process.exit(1);
+  });
 } else {
-  console.error('❌ MongoDB URI not found. Exiting.');
+  console.error('❌ MONGODB_URI environment variable is required');
   process.exit(1);
 }
 
 // Ensure session secret is set
 if (!process.env.SESSION_SECRET) {
-  console.error('❌ SESSION_SECRET not set. Exiting.');
+  console.error('❌ SESSION_SECRET environment variable is required');
   process.exit(1);
 }
 
 // Add compression middleware for better performance
 app.use(compression());
 
-// Configure CORS with our custom settings
-app.use(cors(corsConfig.corsOptions()));
+// CORS configuration - CRITICAL for cross-domain cookies
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://nevexa.vercel.app',
+  'https://nevexa-git-main-abrar-30s-projects.vercel.app'
+  // Add any other production domains here
+];
 
-// Body parser middleware
-app.use(express.urlencoded({ extended: true }));
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      console.log(`❌ Blocked by CORS: ${origin}`);
+      return callback(new Error(`CORS not allowed for ${origin}`), false);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Set-Cookie']
+}));
+
+// Body parser middleware with size limits
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(express.json({ limit: '10mb' }));
 
-// Session configuration
+// Session configuration with MongoDB store
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -52,17 +83,42 @@ app.use(session({
   proxy: true, // Important for proxied environments like Render
   store: MongoStore.create({ 
     mongoUrl: process.env.MONGODB_URI,
-    collectionName: 'sessions'
+    collectionName: 'sessions',
+    ttl: 24 * 60 * 60 // 1 day in seconds
   }),
-  cookie: corsConfig.cookieConfig(isProduction)
+  cookie: {
+    httpOnly: true,
+    sameSite: 'none', // Required for cross-site cookies
+    secure: true,     // Must be true when sameSite is 'none'
+    maxAge: 24 * 60 * 60 * 1000 // 1 day
+  }
 }));
+
+// Debug middleware to check session and cookies
+app.use((req, res, next) => {
+  console.log('🔐 Request URL:', req.url);
+  console.log('🔐 Session ID:', req.sessionID);
+  console.log('🔐 Session data:', req.session);
+  console.log('🔐 User authenticated:', req.isAuthenticated ? req.isAuthenticated() : false);
+  
+  // Check if we're about to set a cookie in the response
+  const originalSetHeader = res.setHeader;
+  res.setHeader = function(name, value) {
+    if (name === 'Set-Cookie') {
+      console.log('🔐 Response headers will include Set-Cookie');
+      console.log('🔐 Cookie that should be set:', value);
+    }
+    return originalSetHeader.call(this, name, value);
+  };
+  
+  next();
+});
 
 // Additional headers for cross-origin cookie handling
 app.use((req, res, next) => {
-  if (isProduction) {
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Vary', 'Origin');
-  }
+  // ALWAYS set these headers for cross-domain cookies
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Vary', 'Origin');
   next();
 });
 
@@ -90,11 +146,36 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/comments', commentRoutes);
 
+// Authentication test endpoint
+app.get('/api/auth-test', (req, res) => {
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    res.json({ 
+      authenticated: true, 
+      user: req.user,
+      session: req.session
+    });
+  } else {
+    res.json({ 
+      authenticated: false,
+      sessionExists: !!req.session,
+      sessionID: req.sessionID
+    });
+  }
+});
+
 // Create HTTP server
 const server = http.createServer(app);
 
-// Configure Socket.IO
-const io = new Server(server, corsConfig.socketOptions());
+// Configure Socket.IO for production
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+  },
+  pingTimeout: 60000, // Increase timeout for better connection stability
+});
+
+// Initialize socket handlers
 socketHandler(io);
 
 // Error handling middleware
@@ -123,6 +204,14 @@ server.listen(PORT, '0.0.0.0', () => {
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error('❌ Unhandled Promise Rejection:', err);
+  // Don't crash the server in production, but log the error
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  // In production, you might want to gracefully shut down and restart
+  // process.exit(1);
 });
 
 module.exports = app;
