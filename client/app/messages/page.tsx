@@ -748,7 +748,7 @@ export default function MessagesPage() {
         {/* Chat Window */}
         <div className={`${
           isMobile ? (mobileChatOpen ? 'flex' : 'hidden') : 'flex'
-        } flex-1 flex-col bg-white ${isMobile ? 'h-[calc(100vh-120px)]' : 'h-[calc(100vh-60px)]'}`}>
+        } flex-1 flex-col bg-white ${isMobile ? 'h-screen' : 'h-[calc(100vh-60px)]'}`}>
           
           {selectedConversation ? (
             <>
@@ -814,31 +814,38 @@ export default function MessagesPage() {
                 </div>
               </div>
 
-              {/* Message Input */}
-              <div className="p-4 border-t border-gray-200 flex-shrink-0">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }}
-                  className="flex space-x-2"
-                >
-                  <Input
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    placeholder="Type a message..."
-                    className="flex-1"
-                    disabled={sending}
-                  />
-                  <Button type="submit" disabled={sending || !messageInput.trim()}>
-                    {sending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
-                </form>
+              {/* Message Input - Fixed at bottom for mobile */}
+              <div className={`border-t border-gray-200 flex-shrink-0 ${isMobile ? 'fixed bottom-0 left-0 right-0 bg-white' : 'p-4'}`}>
+                <div className={isMobile ? 'p-4' : ''}>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }}
+                    className="flex space-x-2"
+                  >
+                    <Input
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      placeholder="Type a message..."
+                      className="flex-1"
+                      disabled={sending}
+                    />
+                    <Button type="submit" disabled={sending || !messageInput.trim()}>
+                      {sending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </form>
+                </div>
               </div>
+              
+              {/* Spacer for mobile to prevent content from being hidden behind fixed input */}
+              {isMobile && (
+                <div className="h-20"></div>
+              )}
             </>
           ) : (
             /* No conversation selected */

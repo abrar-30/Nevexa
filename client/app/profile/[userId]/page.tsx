@@ -16,100 +16,121 @@ import { useToast } from "@/hooks/use-toast"
 import { useParams } from "next/navigation"
 import ProfileSkeleton from "@/components/profile-skeleton"
 import PostSkeleton from "@/components/post-skeleton"
-import type { User, Post } from "@/lib/posts-api";
-import { API_BASE_URL } from "@/lib/api";
-import { getCurrentUser } from "@/lib/auth-api"
-import { useRouter } from "next/navigation"
+import type { User as UserBase, Post } from "@/lib/posts-api";
+import { apiRequest } from "@/lib/api";
+import { getCurrentUser } from "@/lib/auth-api";
+import { useRouter } from "next/navigation";
+
+// Extend User type to include isFollowing
+interface User extends UserBase {
+  isFollowing?: boolean;
+}
 
 // API functions for actual backend integration
 const fetchUserProfile = async (userId: string): Promise<User> => {
-  const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch user profile")
-  }
-
-  const data = await response.json()
-  return data.user || data
+  const response = await apiRequest<User>(`/users/${userId}`);
+  return response;
 }
 
 const fetchUserPosts = async (userId: string): Promise<Post[]> => {
-  const response = await fetch(`${API_BASE_URL}/users/${userId}/posts`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch user posts")
-  }
-
-  const data = await response.json()
-  return data.posts || data || []
+  const response = await apiRequest<{ posts: Post[] }>(`/users/${userId}/posts`);
+  return response.posts || response || [];
 }
 
 const fetchCurrentUser = async () => {
-  const response = await fetch(`${API_BASE_URL}/users/me`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error("Failed to get current user")
-  }
-
-  const data = await response.json()
-  return data.user || data
+  const response = await apiRequest<User>('/users/me');
+  return response;
 }
 
 const followUser = async (userId: string): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/users/${userId}/follow`, {
+  await apiRequest(`/users/${userId}/follow`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error("Failed to follow user")
-  }
+  });
 }
 
 const unfollowUser = async (userId: string): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/users/${userId}/unfollow`, {
+  await apiRequest(`/users/${userId}/unfollow`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  })
+  });
+}
 
-  if (!response.ok) {
-    throw new Error("Failed to unfollow user")
+// Fetch detailed user data for followers/following
+const fetchUserDetails = async (userIds: any[]): Promise<User[]> => {
+  if (!userIds || userIds.length === 0) return [];
+  
+  // Extract actual IDs from the userIds array
+  // userIds might be populated objects or just IDs
+  const actualIds = userIds.map(id => {
+    if (typeof id === 'string') {
+      return id;
+    } else if (id && typeof id === 'object' && id._id) {
+      return id._id;
+    } else {
+      console.warn('Invalid user ID format:', id);
+      return null;
+    }
+  }).filter(id => id !== null);
+  
+  console.log('Original userIds:', userIds);
+  console.log('Extracted actual IDs:', actualIds);
+  
+  if (actualIds.length === 0) {
+    console.log('No valid IDs found');
+    return [];
+  }
+  
+  const url = `/users/batch?ids=${actualIds.join(',')}`;
+  console.log('API URL:', url);
+  
+  // Check JWT token
+  const jwt = localStorage.getItem('jwt');
+  console.log('JWT token present:', !!jwt);
+  if (jwt) {
+    console.log('JWT token length:', jwt.length);
+  }
+  
+  try {
+    // First test if the API is accessible
+    console.log('Testing API accessibility...');
+    
+    // Test with a simple endpoint first
+    try {
+      const testResponse = await apiRequest<{ message: string }>('/users/test');
+      console.log('Test endpoint response:', testResponse);
+    } catch (testError) {
+      console.error('Test endpoint failed:', testError);
+    }
+    
+    const response = await apiRequest<{ users: User[] }>(url);
+    console.log('API response:', response);
+    return response.users || [];
+  } catch (error) {
+    console.error('Failed to fetch user details:', error);
+    console.error('Error details:', error);
+    return [];
   }
 }
 
 export default function UserProfilePage() {
   const params = useParams()
   const userId = params?.userId as string
+  
+  console.log('Profile page - userId:', userId);
+  console.log('Profile page - params:', params);
   const [user, setUser] = useState<User | null>(null)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isPostsLoading, setIsPostsLoading] = useState(true)
-  const [isFollowing, setIsFollowing] = useState(false)
   const [isFollowLoading, setIsFollowLoading] = useState(false)
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [showFollowers, setShowFollowers] = useState(false)
   const [showFollowing, setShowFollowing] = useState(false)
   const [showMessage, setShowMessage] = useState(false)
+  const [followersData, setFollowersData] = useState<User[]>([])
+  const [followingData, setFollowingData] = useState<User[]>([])
+  const [isLoadingFollowers, setIsLoadingFollowers] = useState(false)
+  const [isLoadingFollowing, setIsLoadingFollowing] = useState(false)
   const { toast } = useToast()
 
   const loadProfile = async () => {
@@ -122,9 +143,7 @@ export default function UserProfilePage() {
       setCurrentUser(currentUserData)
       
       // Check if current user is following this user
-      if (currentUserData && profileData.followers) {
-        setIsFollowing(profileData.followers.includes(currentUserData._id))
-      }
+      // setIsFollowing(profileData.followers.includes(currentUserData._id)) // This line is removed
     } catch (err) {
       toast({
         title: "Error",
@@ -165,29 +184,20 @@ export default function UserProfilePage() {
     
     setIsFollowLoading(true)
     try {
-      if (isFollowing) {
+      if (user.isFollowing) {
         await unfollowUser(user._id)
-        setIsFollowing(false)
-        setUser(prev => prev ? {
-          ...prev,
-          followers: prev.followers?.filter(id => id !== currentUser._id) || []
-        } : null)
         toast({
           title: "Unfollowed",
           description: `You unfollowed ${user.name}`,
         })
       } else {
         await followUser(user._id)
-        setIsFollowing(true)
-        setUser(prev => prev ? {
-          ...prev,
-          followers: [...(prev.followers || []), currentUser._id]
-        } : null)
         toast({
           title: "Following",
           description: `You are now following ${user.name}`,
         })
       }
+      await loadProfile();
     } catch (err) {
       toast({
         title: "Error",
@@ -200,6 +210,71 @@ export default function UserProfilePage() {
   }
 
   const isOwnProfile = currentUser && user && currentUser._id === user._id
+
+  const loadFollowersData = async () => {
+    if (!user?.followers || user.followers.length === 0) {
+      setFollowersData([]);
+      return;
+    }
+    
+    console.log('Loading followers data for user:', user._id);
+    console.log('Followers data:', user.followers);
+    
+    setIsLoadingFollowers(true);
+    try {
+      const followers = await fetchUserDetails(user.followers);
+      console.log('Followers data loaded:', followers);
+      setFollowersData(followers);
+    } catch (error) {
+      console.error('Failed to load followers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load followers data.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingFollowers(false);
+    }
+  };
+
+  const loadFollowingData = async () => {
+    if (!user?.following || user.following.length === 0) {
+      setFollowingData([]);
+      return;
+    }
+    
+    console.log('Loading following data for user:', user._id);
+    console.log('Following data:', user.following);
+    
+    setIsLoadingFollowing(true);
+    try {
+      const following = await fetchUserDetails(user.following);
+      console.log('Following data loaded:', following);
+      setFollowingData(following);
+    } catch (error) {
+      console.error('Failed to load following:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load following data.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingFollowing(false);
+    }
+  };
+
+  // Load followers/following data when dialogs are opened
+  useEffect(() => {
+    if (showFollowers) {
+      loadFollowersData();
+    }
+  }, [showFollowers, user?.followers]);
+
+  useEffect(() => {
+    if (showFollowing) {
+      loadFollowingData();
+    }
+  }, [showFollowing, user?.following]);
 
   if (isLoading) {
     return (
@@ -304,38 +379,64 @@ export default function UserProfilePage() {
                     <Button 
                       onClick={handleFollowToggle}
                       disabled={isFollowLoading}
-                      variant={isFollowing ? "outline" : "default"}
-                      className={isFollowing 
+                      variant={user.isFollowing ? "outline" : "default"}
+                      className={user.isFollowing 
                         ? "border-gray-300 text-gray-700 hover:bg-gray-50 bg-white" 
                         : "bg-black text-white hover:bg-gray-800 border-black"
                       }
                     >
                       <UserPlus className="h-4 w-4 mr-2" />
-                      {isFollowLoading ? "Loading..." : isFollowing ? "Unfollow" : "Follow"}
+                      {isFollowLoading ? "Loading..." : user.isFollowing ? "Unfollow" : "Follow"}
                     </Button>
                   </>
                 )}
               </div>
             </div>
 
-            <div className="flex space-x-8 text-sm mt-6 pt-6 border-t border-gray-200">
-              <div className="text-center">
+            <div className="flex justify-center items-start gap-12 text-sm mt-6 pt-6 border-t border-gray-200">
+              <div className="flex flex-col items-center text-center min-w-[80px]">
                 <div className="text-2xl font-bold text-gray-900">{posts.length || 0}</div>
                 <div className="text-gray-600">Posts</div>
               </div>
               <button 
                 onClick={() => setShowFollowers(true)} 
-                className="text-center hover:scale-105 transition-transform cursor-pointer"
+                className="flex flex-col items-center text-center min-w-[80px] hover:scale-105 transition-transform cursor-pointer"
               >
                 <div className="text-2xl font-bold text-gray-900">{user.followers?.length || 0}</div>
                 <div className="text-gray-600">Followers</div>
+                {user.followers && user.followers.length > 0 && (
+                  <div className="flex -space-x-2 mt-2 justify-center">
+                    {user.followers.slice(0, 5).map((follower: any, idx: number) => (
+                      <Avatar key={follower._id || follower.id || idx} className="h-7 w-7 border-2 border-white">
+                        <AvatarImage src={follower.avatar || '/placeholder.svg'} />
+                        <AvatarFallback>{follower.name?.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                    ))}
+                    {user.followers.length > 5 && (
+                      <span className="text-xs text-gray-500 ml-2">+{user.followers.length - 5} more</span>
+                    )}
+                  </div>
+                )}
               </button>
               <button 
                 onClick={() => setShowFollowing(true)} 
-                className="text-center hover:scale-105 transition-transform cursor-pointer"
+                className="flex flex-col items-center text-center min-w-[80px] hover:scale-105 transition-transform cursor-pointer"
               >
                 <div className="text-2xl font-bold text-gray-900">{user.following?.length || 0}</div>
                 <div className="text-gray-600">Following</div>
+                {user.following && user.following.length > 0 && (
+                  <div className="flex -space-x-2 mt-2 justify-center">
+                    {user.following.slice(0, 5).map((followed: any, idx: number) => (
+                      <Avatar key={followed._id || followed.id || idx} className="h-7 w-7 border-2 border-white">
+                        <AvatarImage src={followed.avatar || '/placeholder.svg'} />
+                        <AvatarFallback>{followed.name?.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                    ))}
+                    {user.following.length > 5 && (
+                      <span className="text-xs text-gray-500 ml-2">+{user.following.length - 5} more</span>
+                    )}
+                  </div>
+                )}
               </button>
             </div>
           </CardHeader>
@@ -412,14 +513,36 @@ export default function UserProfilePage() {
         open={showFollowers}
         onOpenChange={setShowFollowers}
         title="Followers"
-        users={[]} // This would be populated from API
+        users={followersData}
+        isLoading={isLoadingFollowers}
+        currentUserId={currentUser?._id}
+        onFollowToggle={async (userId, isFollowing) => {
+          if (isFollowing) {
+            await unfollowUser(userId);
+          } else {
+            await followUser(userId);
+          }
+          await loadFollowersData();
+          await loadProfile();
+        }}
       />
 
       <FollowersDialog
         open={showFollowing}
         onOpenChange={setShowFollowing}
         title="Following"
-        users={[]} // This would be populated from API
+        users={followingData}
+        isLoading={isLoadingFollowing}
+        currentUserId={currentUser?._id}
+        onFollowToggle={async (userId, isFollowing) => {
+          if (isFollowing) {
+            await unfollowUser(userId);
+          } else {
+            await followUser(userId);
+          }
+          await loadFollowingData();
+          await loadProfile();
+        }}
       />
 
       {!isOwnProfile && (

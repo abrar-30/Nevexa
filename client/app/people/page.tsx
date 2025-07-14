@@ -65,6 +65,7 @@ export default function PeoplePage() {
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
   const router = useRouter()
+  const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -120,12 +121,13 @@ export default function PeoplePage() {
     }
   }
 
-  const handleFollow = async (userId: string) => {
+  const handleFollow = async (userId: string, isFollowing: boolean) => {
+    setLoadingUserId(userId);
     try {
       const user = [...users, ...suggestions].find((u) => u._id === userId)
       if (!user) return
 
-      if (user.isFollowing) {
+      if (isFollowing) {
         await unfollowUser(userId)
         // Update user state
         const updateUser = (u: User) =>
@@ -170,10 +172,13 @@ export default function PeoplePage() {
         description: "Failed to update follow status. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setLoadingUserId(null);
     }
   }
 
   const handleUserClick = (userId: string) => {
+    console.log('Navigating to profile:', userId);
     router.push(`/profile/${userId}`)
   }
 
@@ -181,60 +186,70 @@ export default function PeoplePage() {
     router.push(`/messages?user=${userId}`)
   }
 
-  const UserCard = ({ user, showMutual = true }: { user: User; showMutual?: boolean }) => (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleUserClick(user._id)}>
-      <CardContent className="p-6">
-        <div className="flex items-start space-x-4">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={user.avatar || "/placeholder.svg"} />
-            <AvatarFallback className="text-lg">{user.name.charAt(0)}</AvatarFallback>
-          </Avatar>
+  const UserCard = ({ user, showMutual = true }: { user: User; showMutual?: boolean }) => {
+    const isCurrentUser = currentUser?._id === user._id;
+    return (
+      <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleUserClick(user._id)}>
+        <CardContent className="p-6">
+          <div className="flex items-start space-x-4">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={user.avatar || "/placeholder.svg"} />
+              <AvatarFallback className="text-lg">{user.name.charAt(0)}</AvatarFallback>
+            </Avatar>
 
-          <div className="flex-1 space-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-lg hover:text-blue-600 transition-colors">{user.name}</h3>
-                <p className="text-sm text-muted-foreground">{user.location || "No location"}</p>
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-lg hover:text-blue-600 transition-colors">{user.name}</h3>
+                  <p className="text-sm text-muted-foreground">{user.location || "No location"}</p>
+                </div>
+
+                <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
+                  {!isCurrentUser && (
+                    <Button
+                      variant={user.isFollowing ? "outline" : "default"}
+                      size="sm"
+                      disabled={loadingUserId === user._id}
+                      onClick={async () => await handleFollow(user._id, !!user.isFollowing)}
+                      className={user.isFollowing 
+                        ? "border-gray-300 text-gray-700 hover:bg-gray-50 bg-white" 
+                        : "bg-black text-white hover:bg-gray-800 border-black"
+                      }
+                    >
+                      {loadingUserId === user._id ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <UserPlus className="h-4 w-4 mr-2" />
+                      )}
+                      {user.isFollowing ? "Following" : "Follow"}
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => handleMessage(user._id, user.name)}>
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Message
+                  </Button>
+                </div>
               </div>
 
-              <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant={user.isFollowing ? "outline" : "default"}
-                  size="sm"
-                  onClick={() => handleFollow(user._id)}
-                  className={user.isFollowing 
-                    ? "border-gray-300 text-gray-700 hover:bg-gray-50 bg-white" 
-                    : "bg-black text-white hover:bg-gray-800 border-black"
-                  }
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  {user.isFollowing ? "Unfollow" : "Follow"}
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => handleMessage(user._id, user.name)}>
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Message
-                </Button>
+              <p className="text-sm text-gray-600 line-clamp-2">{user.bio || "No bio available"}</p>
+
+              <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                <span>
+                  <strong>{user.followers?.length || 0}</strong> followers
+                </span>
+                <span>
+                  <strong>{user.following?.length || 0}</strong> following
+                </span>
+                {showMutual && user.mutualFollowers && user.mutualFollowers > 0 && (
+                  <Badge variant="secondary">{user.mutualFollowers} mutual</Badge>
+                )}
               </div>
-            </div>
-
-            <p className="text-sm text-gray-600 line-clamp-2">{user.bio || "No bio available"}</p>
-
-            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-              <span>
-                <strong>{user.followers?.length || 0}</strong> followers
-              </span>
-              <span>
-                <strong>{user.following?.length || 0}</strong> following
-              </span>
-              {showMutual && user.mutualFollowers && user.mutualFollowers > 0 && (
-                <Badge variant="secondary">{user.mutualFollowers} mutual</Badge>
-              )}
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
+        </CardContent>
+      </Card>
+    )
+  }
 
   const LoadingSkeleton = () => (
     <Card>

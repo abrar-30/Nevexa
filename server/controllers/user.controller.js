@@ -1,7 +1,6 @@
 // Get current user's profile with joinedCommunities, followers, and following populated
 const getMe = async (req, res) => {
-  console.log('Session:', req.session);
-  console.log('User:', req.user);
+  console.log('JWT User:', req.user);
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
@@ -31,7 +30,22 @@ const getUserById = async (req, res) => {
       .populate('following', 'name email avatar')
       .select('-hash -salt');
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
+
+    // Add isFollowing property
+    let isFollowing = false;
+    if (req.user && user.followers) {
+      isFollowing = user.followers.some(f => {
+        // f can be a populated object or just an ID
+        if (typeof f === 'object' && f._id) return f._id.equals(req.user._id);
+        return f.equals(req.user._id);
+      });
+    }
+
+    // Add isFollowing to the returned user object
+    const userObj = user.toObject();
+    userObj.isFollowing = isFollowing;
+
+    res.json(userObj);
   } catch (err) {
     res.status(400).json({ error: 'Invalid user ID' });
   }
@@ -134,7 +148,22 @@ const searchUsers = async (req, res) => {
         { avatar: { $regex: query, $options: "i" } }
       ]
     }).select("_id name email avatar");
-    res.json({ users });
+
+    // Fetch current user's following list
+    let followingSet = new Set();
+    if (req.user) {
+      const currentUser = await User.findById(req.user._id).select('following');
+      if (currentUser && currentUser.following) {
+        followingSet = new Set(currentUser.following.map(id => id.toString()));
+      }
+    }
+
+    const usersWithIsFollowing = users.map(user => {
+      const isFollowing = req.user ? followingSet.has(user._id.toString()) : false;
+      return { ...user.toObject(), isFollowing };
+    });
+
+    res.json({ users: usersWithIsFollowing });
   } catch (err) {
     res.status(500).json({ error: "Failed to search users" });
   }
@@ -173,3 +202,52 @@ const getAllUsers = async (req, res) => {
 };
 exports.getAllUsers = getAllUsers;
 exports.searchUsers = searchUsers;
+
+// Get users by IDs (for followers/following lists)
+const getUsersByIds = async (req, res) => {
+  console.log('getUsersByIds called with query:', req.query);
+  console.log('JWT User:', req.user);
+  
+  const User = require('../models/user.model');
+  try {
+    const { ids } = req.query;
+    if (!ids) {
+      console.log('No IDs provided');
+      return res.status(400).json({ error: 'User IDs are required' });
+    }
+
+    const userIds = ids.split(',').filter(id => id.trim());
+    console.log('Filtered user IDs:', userIds);
+    
+    if (userIds.length === 0) {
+      console.log('No valid user IDs found');
+      return res.json({ users: [] });
+    }
+
+    const users = await User.find({ _id: { $in: userIds } })
+      .select('_id name email avatar')
+      .lean();
+
+    // Fetch current user's following list
+    let followingSet = new Set();
+    if (req.user) {
+      const currentUser = await User.findById(req.user._id).select('following');
+      if (currentUser && currentUser.following) {
+        followingSet = new Set(currentUser.following.map(id => id.toString()));
+      }
+    }
+
+    // Add isFollowing property to each user
+    const usersWithIsFollowing = users.map(user => {
+      const isFollowing = req.user ? followingSet.has(user._id.toString()) : false;
+      return { ...user, isFollowing };
+    });
+
+    console.log('Found users:', usersWithIsFollowing.length);
+    res.json({ users: usersWithIsFollowing });
+  } catch (err) {
+    console.error('Error fetching users by IDs:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+};
+exports.getUsersByIds = getUsersByIds;

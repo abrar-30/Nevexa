@@ -18,6 +18,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getCurrentUser } from "@/lib/auth-api"
 import { deletePost } from "@/lib/posts-api"
 import { useRouter } from "next/navigation"
+import { FollowersDialog } from "@/components/followers-dialog"
+import { apiRequest } from "@/lib/api"
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null)
@@ -28,6 +30,40 @@ export default function ProfilePage() {
   const { toast } = useToast()
   const [showEditProfile, setShowEditProfile] = useState(false)
   const router = useRouter()
+  const [showFollowers, setShowFollowers] = useState(false)
+  const [showFollowing, setShowFollowing] = useState(false)
+  const [followersData, setFollowersData] = useState<User[]>([])
+  const [followingData, setFollowingData] = useState<User[]>([])
+  const [isLoadingFollowers, setIsLoadingFollowers] = useState(false)
+  const [isLoadingFollowing, setIsLoadingFollowing] = useState(false)
+
+  // Helper to fetch user details for followers/following
+  const fetchUserDetails = async (userIds: any[]): Promise<User[]> => {
+    if (!userIds || userIds.length === 0) return [];
+    const actualIds = userIds.map(id => (typeof id === 'string' ? id : id?._id)).filter(Boolean)
+    if (actualIds.length === 0) return [];
+    const url = `/users/batch?ids=${actualIds.join(',')}`
+    try {
+      const res = await apiRequest<{ users: User[] }>(url);
+      return res.users || []
+    } catch (e) {
+      return []
+    }
+  }
+
+  // Load followers/following data when dialogs are opened
+  useEffect(() => {
+    if (showFollowers && user?.followers?.length) {
+      setIsLoadingFollowers(true)
+      fetchUserDetails(user.followers).then(setFollowersData).finally(() => setIsLoadingFollowers(false))
+    }
+  }, [showFollowers, user?.followers])
+  useEffect(() => {
+    if (showFollowing && user?.following?.length) {
+      setIsLoadingFollowing(true)
+      fetchUserDetails(user.following).then(setFollowingData).finally(() => setIsLoadingFollowing(false))
+    }
+  }, [showFollowing, user?.following])
 
   const handleDeletePost = async (postId: string) => {
     try {
@@ -92,6 +128,36 @@ export default function ProfilePage() {
     }
     if (user?._id) fetchPosts()
   }, [user, toast])
+
+  // Follow/unfollow logic for dialog
+  const handleDialogFollowToggle = async (userId: string, isFollowing: boolean, type: 'followers' | 'following') => {
+    try {
+      if (isFollowing) {
+        await apiRequest(`/users/${userId}/unfollow`, { method: 'PATCH' });
+      } else {
+        await apiRequest(`/users/${userId}/follow`, { method: 'PATCH' });
+      }
+      // Refresh dialog data and profile user state
+      if (type === 'followers') {
+        if (user?.followers?.length) {
+          setIsLoadingFollowers(true);
+          fetchUserDetails(user.followers).then(setFollowersData).finally(() => setIsLoadingFollowers(false));
+        }
+      } else {
+        if (user?.following?.length) {
+          setIsLoadingFollowing(true);
+          fetchUserDetails(user.following).then(setFollowingData).finally(() => setIsLoadingFollowing(false));
+        }
+      }
+      // Also refresh main user state to update counts
+      if (user?._id) {
+        const updatedUser = await apiRequest<User>(`/users/${user._id}`);
+        setUser(updatedUser);
+      }
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to update follow status', variant: 'destructive' });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -189,19 +255,43 @@ export default function ProfilePage() {
                 <div className="text-2xl font-bold text-gray-900">{posts.length || 0}</div>
                 <div className="text-gray-600">Posts</div>
               </div>
-              <div className="text-center">
+              <button
+                onClick={() => setShowFollowers(true)}
+                className="text-center hover:scale-105 transition-transform cursor-pointer"
+              >
                 <div className="text-2xl font-bold text-gray-900">{user.followers?.length || 0}</div>
                 <div className="text-gray-600">Followers</div>
-              </div>
-              <div className="text-center">
+              </button>
+              <button
+                onClick={() => setShowFollowing(true)}
+                className="text-center hover:scale-105 transition-transform cursor-pointer"
+              >
                 <div className="text-2xl font-bold text-gray-900">{user.following?.length || 0}</div>
                 <div className="text-gray-600">Following</div>
-              </div>
+              </button>
             </div>
           </CardHeader>
         </Card>
         
         <EditProfileDialog open={showEditProfile} onOpenChange={setShowEditProfile} user={user} onUserUpdated={(updatedUser) => setUser(updatedUser)} />
+        <FollowersDialog
+          open={showFollowers}
+          onOpenChange={setShowFollowers}
+          title="Followers"
+          users={followersData}
+          isLoading={isLoadingFollowers}
+          currentUserId={user._id}
+          onFollowToggle={async (userId, isFollowing) => handleDialogFollowToggle(userId, isFollowing, 'followers')}
+        />
+        <FollowersDialog
+          open={showFollowing}
+          onOpenChange={setShowFollowing}
+          title="Following"
+          users={followingData}
+          isLoading={isLoadingFollowing}
+          currentUserId={user._id}
+          onFollowToggle={async (userId, isFollowing) => handleDialogFollowToggle(userId, isFollowing, 'following')}
+        />
         
         <Tabs defaultValue="posts" className="w-full mt-6">
           <TabsList className="grid w-full grid-cols-2 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm">
