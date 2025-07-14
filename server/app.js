@@ -58,6 +58,7 @@ app.use(cors({
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use('/test', express.static(path.join(__dirname, 'test')));
+
 app.use(passport.initialize());
 
 const authRoutes = require('./routes/auth.route');

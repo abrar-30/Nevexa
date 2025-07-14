@@ -4,15 +4,15 @@
   
   "version": "1.0.0",
   
-  "main": "app.js",
+  "main": "app.production.js",
   
   "scripts": {
   
     
-  "start": "node app.js",
+  "start": "node app.production.js",
   
     
-  "dev": "nodemon app.js",
+  "dev": "nodemon app.production.js",
   
     
   "test": "echo \"Error: no test specified\" && exit 1"
