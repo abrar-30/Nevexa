@@ -39,9 +39,6 @@
   "compression": "^1.8.0",
   
     
-  "connect-mongo": "^5.1.0",
-  
-    
   "cors": "^2.8.5",
   
     
@@ -51,10 +48,10 @@
   "express": "^5.1.0",
   
     
-  "express-session": "^1.18.1",
+  "joi": "^17.0.0",
   
     
-  "joi": "^17.0.0",
+  "jsonwebtoken": "^9.0.2",
   
     
   "mongoose": "^8.16.1",
