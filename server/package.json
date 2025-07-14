@@ -69,6 +69,9 @@
   "passport": "^0.7.0",
   
     
+  "passport-jwt": "^4.0.1",
+  
+    
   "passport-local-mongoose": "^8.0.0",
   
     
