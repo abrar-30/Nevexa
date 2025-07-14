@@ -24,12 +24,25 @@ interface NavbarProps {
     avatar?: string
   }
   unreadMessagesCount?: number
+  hideOnMobile?: boolean
 }
 
-export function Navbar({ userRole = "general", unreadMessagesCount = 0 }: NavbarProps) {
+export function Navbar({ userRole = "general", unreadMessagesCount = 0, hideOnMobile = false }: NavbarProps) {
   const pathname = usePathname();
   const [user, setUser] = useState<NavbarProps["user"] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -47,6 +60,11 @@ export function Navbar({ userRole = "general", unreadMessagesCount = 0 }: Navbar
   const handleLogout = () => {
     logoutUser();
     window.location.href = "/auth/login"
+  }
+
+  // Hide navbar on mobile when hideOnMobile is true
+  if (isMobile && hideOnMobile) {
+    return null;
   }
 
   return (

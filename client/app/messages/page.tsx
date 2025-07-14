@@ -523,7 +523,7 @@ export default function MessagesPage() {
   if (userLoading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Navbar />
+        <Navbar hideOnMobile={isMobile && mobileChatOpen} />
         <div className="flex-1 flex items-center justify-center">
           <div className="flex items-center space-x-2">
             <Loader2 className="h-6 w-6 animate-spin" />
@@ -538,7 +538,7 @@ export default function MessagesPage() {
   if (!currentUser) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Navbar />
+        <Navbar hideOnMobile={isMobile && mobileChatOpen} />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -553,7 +553,7 @@ export default function MessagesPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navbar />
+      <Navbar hideOnMobile={isMobile && mobileChatOpen} />
       
       <div className="flex-1 flex max-w-6xl mx-auto w-full">
         {/* Sidebar - Conversations List */}
