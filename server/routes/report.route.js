@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const reportController = require('../controllers/report.controller');
-const { isAuthenticated } = require('../middleware/auth.middleware');
+const passport = require('passport');
 
 // Create a new report
-router.post('/', isAuthenticated, reportController.createReport);
+router.post('/', passport.authenticate('jwt', { session: false }), reportController.createReport);
 
 // Get all reports
 router.get('/', reportController.getAllReports);

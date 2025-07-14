@@ -28,7 +28,6 @@ const fetchUserProfile = async (userId: string): Promise<User> => {
     headers: {
       "Content-Type": "application/json",
     },
-    credentials: "include",
   })
 
   if (!response.ok) {
@@ -45,7 +44,6 @@ const fetchUserPosts = async (userId: string): Promise<Post[]> => {
     headers: {
       "Content-Type": "application/json",
     },
-    credentials: "include",
   })
 
   if (!response.ok) {
@@ -62,7 +60,6 @@ const fetchCurrentUser = async () => {
     headers: {
       "Content-Type": "application/json",
     },
-    credentials: "include",
   })
 
   if (!response.ok) {
@@ -79,7 +76,6 @@ const followUser = async (userId: string): Promise<void> => {
     headers: {
       "Content-Type": "application/json",
     },
-    credentials: "include",
   })
 
   if (!response.ok) {
@@ -93,7 +89,6 @@ const unfollowUser = async (userId: string): Promise<void> => {
     headers: {
       "Content-Type": "application/json",
     },
-    credentials: "include",
   })
 
   if (!response.ok) {

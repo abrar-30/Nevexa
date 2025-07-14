@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { registerUser } from "@/lib/auth-api"
-import { CookieWarning } from "@/components/cookie-warning"
 
 export default function RegisterPage() {
   const [name, setName] = useState("")
@@ -27,9 +26,9 @@ export default function RegisterPage() {
       await registerUser({ name, email, password })
       toast({
         title: "Registration Successful",
-        description: "Welcome to Nevexa! You can now log in.",
+        description: "Welcome to Nevexa! Redirecting to dashboard...",
       })
-      window.location.href = "/auth/login"
+      window.location.href = "/dashboard"
     } catch (err: any) {
       toast({
         title: "Registration Failed",
@@ -44,8 +43,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="w-full max-w-md space-y-4">
-        {/* Cookie Warning */}
-        <CookieWarning className="mb-4" />
+
         
         <Card>
           <CardHeader className="text-center">

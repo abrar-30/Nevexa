@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { CookieWarning } from "@/components/cookie-warning"
+import { loginUser } from '@/lib/auth-api';
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -22,18 +22,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-      console.log(API_BASE_URL);
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ email, password }),
-        credentials: "include",
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || data.message || "Login failed")
-      }
+      await loginUser(email, password)
       toast({
         title: "Login Successful",
         description: "Welcome back to Nevexa!",
@@ -53,8 +42,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="w-full max-w-md space-y-4">
-        {/* Cookie Warning */}
-        <CookieWarning className="mb-4" />
         
         <Card>
           <CardHeader className="text-center">

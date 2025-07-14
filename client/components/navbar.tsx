@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Home, Users, MessageCircle, User, LogOut, Settings, Shield } from "lucide-react"
-import { getCurrentUser } from "@/lib/auth-api";
+import { getCurrentUser, logoutUser } from "@/lib/auth-api";
 
 interface NavbarProps {
   userRole?: "general" | "admin"
@@ -45,7 +45,7 @@ export function Navbar({ userRole = "general", unreadMessagesCount = 0 }: Navbar
   ]
 
   const handleLogout = () => {
-    // Handle logout logic
+    logoutUser();
     window.location.href = "/auth/login"
   }
 

@@ -19,7 +19,8 @@ class ApiError extends Error {
   }
 }
 
-console.log('DEBUG: NEXT_PUBLIC_API_URL =', process.env.NEXT_PUBLIC_API_URL);
+// Remove debug log for production
+// console.log('DEBUG: NEXT_PUBLIC_API_URL =', process.env.NEXT_PUBLIC_API_URL);
 
 // Network connectivity checker
 export async function checkNetworkConnectivity(): Promise<boolean> {
@@ -74,15 +75,39 @@ async function withRetry<T>(operation: () => Promise<T>, maxRetries = 2, delay =
   throw lastError!
 }
 
+// JWT helpers
+export function setJwtToken(token: string) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('jwt', token)
+  }
+}
+export function getJwtToken(): string | null {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('jwt')
+  }
+  return null
+}
+export function removeJwtToken() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('jwt')
+  }
+}
+
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
 
+  // Attach JWT if present
+  const jwt = getJwtToken()
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...options.headers as any,
+  }
+  if (jwt) {
+    headers["Authorization"] = `Bearer ${jwt}`
+  }
+
   const config: RequestInit = {
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-    credentials: "include",
+    headers,
     ...options,
   }
 
@@ -97,15 +122,16 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
   const operation = async (): Promise<T> => {
     try {
-      console.log(`Making API request to: ${url}`)
-      console.log(`Request config:`, {
-        method: config.method || 'GET',
-        credentials: config.credentials,
-        headers: config.headers
-      })
+      // Remove debug logs for production
+      // console.log(`Making API request to: ${url}`)
+      // console.log(`Request config:`, {
+      //   method: config.method || 'GET',
+      //   credentials: config.credentials,
+      //   headers: config.headers
+      // })
       
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000) // Reduced from 10000ms
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
 
       const response = await fetch(url, {
         ...config,
@@ -114,8 +140,9 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
       clearTimeout(timeoutId)
 
-      console.log(`API response status: ${response.status} for ${url}`)
-      console.log(`Response headers:`, Object.fromEntries(response.headers.entries()))
+      // Remove debug logs for production
+      // console.log(`API response status: ${response.status} for ${url}`)
+      // console.log(`Response headers:`, Object.fromEntries(response.headers.entries()))
 
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`
@@ -137,7 +164,8 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       }
 
       const data = await response.json()
-      console.log(`API response data:`, data)
+      // Remove debug log for production
+      // console.log(`API response data:`, data)
       return data
     } catch (error) {
       // Only log errors that are not 401 or 403 Unauthorized/Forbidden

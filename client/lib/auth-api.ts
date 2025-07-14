@@ -1,4 +1,5 @@
-import { apiRequest, ApiError } from "./api"
+import { apiRequest, setJwtToken, removeJwtToken } from './api';
+import { ApiError } from './api';
 import type { User } from "./posts-api"
 import { performanceMonitor } from "./performance"
 
@@ -58,11 +59,14 @@ export async function loginUser(email: string, password: string): Promise<AuthUs
   const stopTimer = performanceMonitor.startTimer("loginUser")
   
   try {
-    const response = await apiRequest<{ user: AuthUser }>("/auth/login", {
+    const response = await apiRequest<{ user: AuthUser, token: string }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     })
 
+    if (response.token) {
+      setJwtToken(response.token)
+    }
     const user = response.user || (response as any)
     
     stopTimer()
@@ -83,11 +87,13 @@ export async function registerUser(userData: {
   const stopTimer = performanceMonitor.startTimer("registerUser")
   
   try {
-    const response = await apiRequest<{ user: AuthUser }>("/auth/register", {
+    const response = await apiRequest<{ user: AuthUser, token: string }>("/auth/register", {
       method: "POST",
       body: JSON.stringify(userData),
     })
-
+    if (response.token) {
+      setJwtToken(response.token)
+    }
     stopTimer()
     return response.user || (response as any)
   } catch (error) {
@@ -97,18 +103,6 @@ export async function registerUser(userData: {
   }
 }
 
-// Logout user
-export async function logoutUser(): Promise<void> {
-  const stopTimer = performanceMonitor.startTimer("logoutUser")
-  
-  try {
-    await apiRequest("/auth/logout", {
-      method: "POST",
-    })
-    stopTimer()
-  } catch (error) {
-    stopTimer()
-    console.error("Failed to logout:", error)
-    throw error
-  }
+export function logoutUser() {
+  removeJwtToken()
 }

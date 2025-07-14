@@ -1,5 +1,5 @@
 // Production-ready server configuration for Render and general production
-// Unified session management for all devices (no mobile-specific logic)
+// JWT-based authentication only, no cookies or sessions
 
 const path = require('path');
 const dotenv = require('dotenv');
@@ -11,11 +11,13 @@ const compression = require('compression');
 const { Server } = require('socket.io');
 const { socketHandler } = require('./sockets/index');
 const connectDB = require('./db/connect');
+const errorHandler = require('./middleware/error.middleware');
 const passport = require('passport');
 const User = require('./models/user.model');
-const errorHandler = require('./middleware/error.middleware');
-const session = require('express-session');
-const MongoStore = require('connect-mongo');
+require('./middleware/passport-jwt')(passport);
+
+// Set up local strategy for login/register
+passport.use(User.createStrategy());
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
@@ -31,12 +33,6 @@ if (process.env.MONGODB_URI) {
   });
 } else {
   console.error('❌ MONGODB_URI environment variable is required');
-  process.exit(1);
-}
-
-// Ensure session secret is set
-if (!process.env.SESSION_SECRET) {
-  console.error('❌ SESSION_SECRET environment variable is required');
   process.exit(1);
 }
 
@@ -74,83 +70,10 @@ app.use(cors({
   exposedHeaders: ['Set-Cookie']
 }));
 
+app.use(passport.initialize());
+
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(express.json({ limit: '10mb' }));
-
-// Unified session management for all devices
-app.use(session({
-  name: 'connect.sid',
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  proxy: true,
-  rolling: true,
-  store: MongoStore.create({ 
-    mongoUrl: process.env.MONGODB_URI,
-    collectionName: 'sessions',
-    ttl: 7 * 24 * 60 * 60,
-    touchAfter: 60 * 60
-  }),
-  cookie: {
-    httpOnly: true,
-    sameSite: actuallyProduction ? 'none' : 'lax', // Use 'none' for cross-domain in production
-    secure: actuallyProduction, // Must be true for 'none' sameSite
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    domain: undefined,
-    path: '/'
-  }
-}));
-
-// Debug middleware for session/cookie info (optional, can be removed in final prod)
-app.use((req, res, next) => {
-  if (req.url.includes('/api/')) {
-    console.log('🔐 Request URL:', req.url);
-    console.log('🔐 Session ID:', req.sessionID);
-    console.log('🔐 Session data:', JSON.stringify(req.session, null, 2));
-    console.log('🔐 User authenticated:', req.isAuthenticated ? req.isAuthenticated() : false);
-    console.log('🔐 req.user:', req.user);
-    console.log('🔐 All cookies:', req.headers.cookie);
-  }
-  next();
-});
-
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Vary', 'Origin');
-  
-  // Additional headers for cross-domain cookies
-  if (actuallyProduction) {
-    res.header('Access-Control-Allow-Origin', req.headers.origin || 'https://nevexa.vercel.app');
-  }
-  
-  if (req.method === 'OPTIONS') {
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Cookie');
-    res.header('Access-Control-Max-Age', '86400');
-    return res.sendStatus(200);
-  }
-  next();
-});
-
-// Authentication setup
-app.use(passport.initialize());
-app.use(passport.session());
-passport.use(User.createStrategy());
-passport.serializeUser((user, done) => {
-  done(null, user.email);
-});
-passport.deserializeUser(async (email, done) => {
-  try {
-    const user = await User.findOne({ email: email });
-    if (user) {
-      done(null, user);
-    } else {
-      done(null, false);
-    }
-  } catch (error) {
-    done(error, null);
-  }
-});
 
 // API Routes
 const authRoutes = require('./routes/auth.route');
@@ -183,48 +106,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Session test endpoint
-app.get('/api/session-test', (req, res) => {
-  if (!req.session.views) {
-    req.session.views = 0;
-  }
-  req.session.views++;
-  res.json({
-    sessionID: req.sessionID,
-    views: req.session.views,
-    session: req.session,
-    cookies: req.headers.cookie,
-    userAgent: req.headers['user-agent'],
-    environment: process.env.NODE_ENV,
-    isProduction: isProduction,
-    actuallyProduction: actuallyProduction
-  });
-});
-
-// Cookie test endpoint for cross-domain debugging
-app.get('/api/cookie-test', (req, res) => {
-  // Set a test cookie
-  res.cookie('test-cookie', 'test-value-' + Date.now(), {
-    httpOnly: true,
-    secure: actuallyProduction,
-    sameSite: actuallyProduction ? 'none' : 'lax',
-    maxAge: 60000 // 1 minute
-  });
-  
-  res.json({
-    message: 'Test cookie set',
-    receivedCookies: req.headers.cookie,
-    environment: process.env.NODE_ENV,
-    actuallyProduction: actuallyProduction,
-    origin: req.headers.origin,
-    cookieSettings: {
-      sameSite: actuallyProduction ? 'none' : 'lax',
-      secure: actuallyProduction,
-      httpOnly: true
-    }
-  });
-});
-
 // Error handling middleware
 app.use(errorHandler);
 
@@ -243,7 +124,6 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running in ${actuallyProduction ? 'production' : 'development'} mode on port ${PORT}`);
   console.log(`🔧 Actual mode: ${actuallyProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
-  console.log(`🍪 Cookies will be: ${actuallyProduction ? 'secure with sameSite=none' : 'non-secure with sameSite=lax'}`);
 });
 
 module.exports = app;

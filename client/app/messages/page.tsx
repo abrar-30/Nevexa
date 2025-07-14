@@ -214,8 +214,7 @@ export default function MessagesPage() {
     const socketUrl = API_BASE_URL.replace(/\/api$/, "");
     console.log("Connecting to socket URL:", socketUrl);
     const socket = io(socketUrl, { 
-      transports: ["websocket"], 
-      withCredentials: true 
+      transports: ["websocket"] 
     });
     
     socket.on("connect", () => {

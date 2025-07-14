@@ -72,7 +72,6 @@ export function EditProfileDialog({ open, onOpenChange, user, onUserUpdated }: E
 
       const response = await fetch(`${API_BASE_URL}/users/${user._id}/avatar`, {
         method: 'POST',
-        credentials: 'include',
         body: formData,
       })
 
@@ -120,7 +119,6 @@ export function EditProfileDialog({ open, onOpenChange, user, onUserUpdated }: E
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify(formData),
       })
 

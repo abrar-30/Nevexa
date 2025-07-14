@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const postController = require('../controllers/post.controller');
 const { upload } = require('../middleware/cloudinary.middleware');
-const { isAuthenticated } = require('../middleware/auth.middleware');
+const passport = require('passport');
 
 // Get all posts
 router.get('/', postController.getAllPosts);
@@ -20,9 +20,9 @@ router.put('/:postId', upload.single('file'), postController.updatePost);
 router.delete('/:postId', postController.deletePost);
 
 // Like a post
-router.patch('/:id/like', isAuthenticated, postController.likePost);
+router.patch('/:id/like', passport.authenticate('jwt', { session: false }), postController.likePost);
 // Unlike a post
-router.patch('/:id/unlike', isAuthenticated, postController.unlikePost);
+router.patch('/:id/unlike', passport.authenticate('jwt', { session: false }), postController.unlikePost);
 
 // // Report a post
 // router.post('/:postId/report', isAuthenticated, postController.reportPost);

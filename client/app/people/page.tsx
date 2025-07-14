@@ -12,8 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Search, Users, UserPlus, MessageCircle, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { API_BASE_URL } from "@/lib/api"
-import { getCurrentUser } from "@/lib/auth-api"
+import { apiRequest } from '@/lib/api';
 
 interface User {
   _id: string
@@ -30,82 +29,30 @@ interface User {
 
 // API functions for actual backend integration
 const searchUsers = async (query: string): Promise<User[]> => {
-  const response = await fetch(`${API_BASE_URL}/users/search?q=${encodeURIComponent(query)}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-  })
-
-  if (!response.ok) {
-    throw new Error("Failed to search users")
-  }
-
-  const data = await response.json()
-  return data.users || data || []
+  const response = await apiRequest<{ users: User[] }>(`/users/search?q=${encodeURIComponent(query)}`);
+  return response.users || response || [];
 }
 
 const getSuggestions = async (): Promise<User[]> => {
-  const response = await fetch(`${API_BASE_URL}/users`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-  })
-
-  if (!response.ok) {
-    throw new Error("Failed to get suggestions")
-  }
-
-  const data = await response.json()
-  return data.users || data || []
+  const response = await apiRequest<{ users: User[] }>('/users');
+  return response.users || response || [];
 }
 
 const followUser = async (userId: string): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/users/${userId}/follow`, {
+  await apiRequest(`/users/${userId}/follow`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-  })
-
-  if (!response.ok) {
-    throw new Error("Failed to follow user")
-  }
+  });
 }
 
 const unfollowUser = async (userId: string): Promise<void> => {
-  const response = await fetch(`${API_BASE_URL}/users/${userId}/unfollow`, {
+  await apiRequest(`/users/${userId}/unfollow`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-  })
-
-  if (!response.ok) {
-    throw new Error("Failed to unfollow user")
-  }
+  });
 }
 
 const fetchCurrentUser = async () => {
-  const response = await fetch(`${API_BASE_URL}/users/me`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-  })
-
-  if (!response.ok) {
-    throw new Error("Failed to get current user")
-  }
-
-  const data = await response.json()
-  return data.user || data
+  const response = await apiRequest<{ user: any }>('/users/me');
+  return response.user || response;
 }
 
 export default function PeoplePage() {

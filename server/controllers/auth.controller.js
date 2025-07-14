@@ -1,5 +1,9 @@
 const User = require('../models/user.model');
 const passport = require('passport');
+const jwt = require('jsonwebtoken');
+
+// Get JWT secret with fallback
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-jwt-secret-change-in-production';
 
 // Register a new user
 exports.register = async (req, res, next) => {
@@ -18,46 +22,56 @@ exports.register = async (req, res, next) => {
     const user = new User(userObj);
     await User.register(user, password);
 
-    // Log in the user after registration
-    req.logIn(user, (err) => {
-      if (err) return next(err);
-      // After successful registration and login
-      res.status(201).json({
-        message: 'User registered and logged in successfully',
-        user: { _id: user._id, name: user.name, email: user.email, avatar: user.avatar }
-      });
+    // Generate JWT after registration
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    res.status(201).json({
+      message: 'User registered successfully',
+      user: { _id: user._id, name: user.name, email: user.email, avatar: user.avatar },
+      token
     });
   } catch (err) {
+    console.error('Registration error:', err);
     res.status(400).json({ error: err.message });
   }
 };
 
 // Login user
-exports.login = (req, res, next) => {
-  passport.authenticate('local', (err, user, info) => {
-    if (err) return next(err);
-    if (!user) return res.status(401).json({ error: info.message });
-    req.logIn(user, (err) => {
-      if (err) return next(err);
-      
-      // Debug: Log session info after login
-      console.log('🔐 Login successful for user:', user.email);
-      console.log('🔐 Session ID after login:', req.sessionID);
-      console.log('🔐 Session data:', req.session);
-      console.log('🔐 User authenticated:', req.isAuthenticated());
-      console.log('🔐 Response headers will include Set-Cookie');
-      
-      res.json({ 
-        message: 'Login successful', 
-        user: { _id: user._id, name: user.name, email: user.email, avatar: user.avatar } 
+exports.login = async (req, res, next) => {
+  passport.authenticate('local', async (err, user, info) => {
+    if (err) {
+      console.error('Login error:', err);
+      return next(err);
+    }
+    if (!user) {
+      return res.status(401).json({ error: info.message || 'Invalid credentials' });
+    }
+
+    try {
+      // Generate JWT on successful login
+      const token = jwt.sign(
+        { userId: user._id, email: user.email },
+        JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+
+      res.json({
+        message: 'Login successful',
+        user: { _id: user._id, name: user.name, email: user.email, avatar: user.avatar },
+        token
       });
-    });
+    } catch (jwtError) {
+      console.error('JWT generation error:', jwtError);
+      res.status(500).json({ error: 'Failed to generate authentication token' });
+    }
   })(req, res, next);
 };
 
-// Logout user
+// Logout user (no-op for JWT, but kept for API compatibility)
 exports.logout = (req, res) => {
-  req.logout(() => {
-    res.json({ message: 'Logout successful' });
-  });
+  res.json({ message: 'Logout successful (client should discard JWT)' });
 };
