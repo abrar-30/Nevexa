@@ -19,7 +19,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { Camera, Loader2 } from "lucide-react"
 import type { User } from "@/lib/posts-api"
-import { API_BASE_URL } from "@/lib/api"
+import { API_BASE_URL, apiRequest } from "@/lib/api"
+import { ApiError } from "@/lib/api"
 
 interface EditProfileDialogProps {
   open: boolean
@@ -70,18 +71,12 @@ export function EditProfileDialog({ open, onOpenChange, user, onUserUpdated }: E
       const formData = new FormData()
       formData.append('avatar', file)
 
-      const response = await fetch(`${API_BASE_URL}/users/${user._id}/avatar`, {
+      // Use apiRequest to ensure JWT is included
+      const data = await apiRequest(`/users/${user._id}/avatar`, {
         method: 'POST',
         body: formData,
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to upload avatar')
-      }
-
-      const data = await response.json()
-      setAvatar(data.avatar)
-      
+      setAvatar((data as { avatar: string }).avatar)
       toast({
         title: "Avatar Updated",
         description: "Your avatar has been updated successfully!",
@@ -114,35 +109,45 @@ export function EditProfileDialog({ open, onOpenChange, user, onUserUpdated }: E
     setIsLoading(true)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${user._id}`, {
+      // Use apiRequest to ensure JWT is included
+      const response = await apiRequest(`/users/${user._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(formData),
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to update profile')
-      }
-
-      const updatedUser = await response.json()
-      onUserUpdated({ ...updatedUser, avatar })
-      setIsLoading(false)
-      onOpenChange(false)
-
+      // Support both { user: ... } and plain user object
+      const updatedUser = (response as any).user || response as User;
+      onUserUpdated(updatedUser);
+      onOpenChange(false);
+      setIsLoading(false);
       toast({
         title: "Profile Updated",
         description: "Your profile has been updated successfully!",
-      })
+      });
     } catch (error) {
-      console.error('Profile update error:', error)
+      if (error instanceof ApiError && error.code === "TIMEOUT_ERROR") {
+        toast({
+          title: "Request Timed Out",
+          description: "The server took too long to respond. Please try again.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      // Only show error if the profile was NOT updated
+      if (error instanceof ApiError && error.status === 401) {
+        setIsLoading(false);
+        return;
+      }
+      console.error('Profile update error:', error);
       toast({
         title: "Update Failed",
         description: "Failed to update profile. Please try again.",
         variant: "destructive",
-      })
-      setIsLoading(false)
+      });
+      setIsLoading(false);
     }
   }
 
@@ -161,6 +166,8 @@ export function EditProfileDialog({ open, onOpenChange, user, onUserUpdated }: E
                 <AvatarImage src={avatar || "/placeholder.svg"} />
                 <AvatarFallback className="text-xl">{user.name.charAt(0)}</AvatarFallback>
               </Avatar>
+              {/* Red underline under avatar */}
+              <div className="absolute left-0 right-0 bottom-0 h-1 bg-red-500 rounded-b"></div>
               <Button 
                 type="button" 
                 size="sm" 

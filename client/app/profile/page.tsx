@@ -28,7 +28,7 @@ export default function ProfilePage() {
   const [isPostsLoading, setIsPostsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
-  const [showEditProfile, setShowEditProfile] = useState(false)
+  const [editOpen, setEditOpen] = useState(false);
   const router = useRouter()
   const [showFollowers, setShowFollowers] = useState(false)
   const [showFollowing, setShowFollowing] = useState(false)
@@ -159,6 +159,10 @@ export default function ProfilePage() {
     }
   };
 
+  const handleUserUpdated = (updatedUser: User) => {
+    setUser(updatedUser);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 pb-16 md:pb-0">
@@ -241,7 +245,7 @@ export default function ProfilePage() {
 
               <div className="flex space-x-3 mt-4 md:mt-0">
                 <Button 
-                  onClick={() => setShowEditProfile(true)}
+                  onClick={() => setEditOpen(true)}
                   className="bg-black text-white hover:bg-gray-800 border-black shadow-lg"
                 >
                   <Edit className="h-4 w-4 mr-2" />
@@ -273,7 +277,12 @@ export default function ProfilePage() {
           </CardHeader>
         </Card>
         
-        <EditProfileDialog open={showEditProfile} onOpenChange={setShowEditProfile} user={user} onUserUpdated={(updatedUser) => setUser(updatedUser)} />
+        <EditProfileDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          user={user}
+          onUserUpdated={handleUserUpdated}
+        />
         <FollowersDialog
           open={showFollowers}
           onOpenChange={setShowFollowers}
