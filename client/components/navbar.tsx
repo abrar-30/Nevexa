@@ -82,7 +82,9 @@ export function Navbar({ userRole = "general", unreadMessagesCount = 0, hideOnMo
                   <item.icon className="h-4 w-4 mr-2" />
                   {item.label}
                   {item.badge && item.badge > 0 && (
-                    <Badge className="ml-2 h-5 w-5 rounded-full p-0 text-xs">{item.badge}</Badge>
+                    <Badge className="ml-2 h-5 w-5 rounded-full p-0 text-xs bg-red-500 hover:bg-red-600 text-white">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </Badge>
                   )}
                 </Button>
               </Link>

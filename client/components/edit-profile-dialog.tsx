@@ -108,6 +108,11 @@ export function EditProfileDialog({ open, onOpenChange, user, onUserUpdated }: E
     e.preventDefault()
     setIsLoading(true)
 
+    console.log('Submitting profile update:', {
+      userId: user._id,
+      formData: formData
+    });
+
     try {
       // Use apiRequest to ensure JWT is included
       const response = await apiRequest(`/users/${user._id}`, {
@@ -142,9 +147,10 @@ export function EditProfileDialog({ open, onOpenChange, user, onUserUpdated }: E
         return;
       }
       console.error('Profile update error:', error);
+      const errorMessage = error instanceof ApiError ? error.message : 'Failed to update profile. Please try again.';
       toast({
         title: "Update Failed",
-        description: "Failed to update profile. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       setIsLoading(false);

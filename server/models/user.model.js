@@ -10,6 +10,8 @@ const userSchema = new Schema(
       type: String,
       required: true,
       trim: true,
+      minlength: [2, 'Name must be at least 2 characters long'],
+      maxlength: [50, 'Name cannot exceed 50 characters']
     },
 
     email: {
@@ -40,16 +42,19 @@ const userSchema = new Schema(
     location: {
       type: String,
       default: "",
+      maxlength: [100, 'Location cannot exceed 100 characters']
     },
 
     bio: {
       type: String,
       default: "",
+      maxlength: [500, 'Bio cannot exceed 500 characters']
     },
 
     interests: {
       type: String,
       default: "",
+      maxlength: [200, 'Interests cannot exceed 200 characters']
     },
 
     role: {
@@ -67,7 +72,6 @@ const userSchema = new Schema(
       {
         type: Schema.Types.ObjectId,
         ref: "Post",
-        default: [],
       },
     ],
 
@@ -75,7 +79,6 @@ const userSchema = new Schema(
       {
         type: Schema.Types.ObjectId,
         ref: "User",
-        default: [],
       },
     ],
 

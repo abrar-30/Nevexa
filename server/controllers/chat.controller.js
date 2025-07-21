@@ -226,9 +226,61 @@ const getConversations = async (req, res) => {
   }
 };
 
+// Get total unread count for current user
+const getTotalUnreadCount = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userId = String(req.user._id);
+
+    // Find all users this user has messaged or received messages from
+    const participants = await Message.aggregate([
+      {
+        $match: {
+          $or: [
+            { sender: userId },
+            { receiver: userId }
+          ]
+        }
+      },
+      {
+        $addFields: {
+          otherUser: {
+            $cond: [
+              { $eq: ["$sender", userId] },
+              "$receiver",
+              "$sender"
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$otherUser"
+        }
+      }
+    ]);
+
+    // Calculate total unread count across all conversations
+    let totalUnread = 0;
+    for (const participant of participants) {
+      const unreadCount = await getUnreadCount(userId, participant._id);
+      totalUnread += unreadCount;
+    }
+
+    res.json({ unreadCount: totalUnread });
+  } catch (err) {
+    console.error('Get total unread count error:', err);
+    res.status(500).json({ error: "Failed to fetch unread count" });
+  }
+};
+
 module.exports = {
   getMessages,
   sendMessage,
   getConversations,
-  markConversationAsRead
+  markConversationAsRead,
+  getTotalUnreadCount
 };

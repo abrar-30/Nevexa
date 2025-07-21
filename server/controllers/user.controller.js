@@ -55,19 +55,32 @@ exports.getUserById = getUserById;
 // Update user profile (self only)
 const updateUser = async (req, res) => {
   const User = require('../models/user.model');
+
   if (req.user._id.toString() !== req.params.id) {
     return res.status(403).json({ error: 'You can only update your own profile.' });
   }
+
   try {
     const updates = {};
     // Only allow updating certain fields
     ['name', 'avatar', 'location', 'bio', 'interests'].forEach(field => {
       if (req.body[field] !== undefined) updates[field] = req.body[field];
     });
-    const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true }).select('-hash -salt');
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true, runValidators: true }
+    ).select('-hash -salt');
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
     res.json(user);
   } catch (err) {
-    res.status(400).json({ error: 'Failed to update user.' });
+    console.error('Error updating user:', err);
+    res.status(400).json({ error: 'Failed to update user.', details: err.message });
   }
 };
 exports.updateUser = updateUser;
@@ -115,21 +128,30 @@ exports.unfollowUser = unfollowUser;
 // Upload user avatar
 const uploadAvatar = async (req, res) => {
   const User = require('../models/user.model');
+
   if (req.user._id.toString() !== req.params.id) {
     return res.status(403).json({ error: 'You can only update your own avatar.' });
   }
+
   if (!req.file || !req.file.path) {
     return res.status(400).json({ error: 'No file uploaded.' });
   }
+
   try {
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { avatar: req.file.path },
       { new: true }
     ).select('-hash -salt');
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
     res.json({ message: 'Avatar updated.', avatar: user.avatar, user });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update avatar.' });
+    console.error('Error updating avatar:', err);
+    res.status(500).json({ error: 'Failed to update avatar.', details: err.message });
   }
 };
 exports.uploadAvatar = uploadAvatar;

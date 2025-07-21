@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
-import { MobileNavigation } from "@/components/mobile-navigation"
+import { MobileNavigationWrapper } from "@/components/mobile-navigation-wrapper"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -377,7 +377,7 @@ export default function PeoplePage() {
         </div>
       </div>
 
-      <MobileNavigation />
+      <MobileNavigationWrapper />
     </div>
   )
 }

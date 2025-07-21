@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/navbar"
-import { MobileNavigation } from "@/components/mobile-navigation"
+import { MobileNavigationWrapper } from "@/components/mobile-navigation-wrapper"
 import { PostCard } from "@/components/post-card"
 import { CreatePostDialog } from "@/components/create-post-dialog"
 import { Button } from "@/components/ui/button"
@@ -377,7 +377,7 @@ export default function DashboardPage() {
         onPostCreated={handlePostCreated}
       />
 
-      <MobileNavigation />
+      <MobileNavigationWrapper />
     </div>
   )
 }

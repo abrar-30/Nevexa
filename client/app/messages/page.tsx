@@ -5,7 +5,8 @@ import { Search, Send, ArrowLeft, Loader2, MessageCircle, Plus, X, RefreshCw } f
 import { getCurrentUser } from "@/lib/auth-api";
 import { getConversations, searchUsers, sendMessage, markConversationAsRead, type Conversation, type User } from "@/lib/chat-api";
 import { Navbar } from "@/components/navbar";
-import { MobileNavigation } from "@/components/mobile-navigation";
+import { MobileNavigationWrapper } from "@/components/mobile-navigation-wrapper";
+import { useMessageContext } from "@/contexts/message-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,9 @@ export default function MessagesPage() {
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Message context for unread count management
+  const { decrementUnreadCount } = useMessageContext();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const searchParams = useSearchParams();
@@ -340,17 +344,21 @@ export default function MessagesPage() {
       
       // Mark conversation as read if there are unread messages
       if (conversation.unreadCount > 0) {
+        const unreadAmount = conversation.unreadCount;
         try {
           await markConversationAsRead(conversation.user.id);
-          
+
           // Update the conversation in the list to clear unread count
-          setConversations(prev => 
-            prev.map(conv => 
-              conv.id === conversation.id 
+          setConversations(prev =>
+            prev.map(conv =>
+              conv.id === conversation.id
                 ? { ...conv, unreadCount: 0 }
                 : conv
             )
           );
+
+          // Decrement the global unread count
+          decrementUnreadCount(unreadAmount);
         } catch (error) {
           console.error('Failed to mark conversation as read:', error);
         }
@@ -363,7 +371,7 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Error selecting conversation:', error);
     }
-  }, [isMobile]);
+  }, [isMobile, decrementUnreadCount]);
 
   // Handle user selection from search
   const handleUserSelect = useCallback(async (user: User) => {
@@ -530,7 +538,7 @@ export default function MessagesPage() {
             <span>Loading...</span>
           </div>
         </div>
-        <MobileNavigation />
+        <MobileNavigationWrapper />
       </div>
     );
   }
@@ -546,7 +554,7 @@ export default function MessagesPage() {
             <p className="text-gray-600">You must be logged in to view messages.</p>
           </div>
         </div>
-        <MobileNavigation />
+        <MobileNavigationWrapper />
       </div>
     );
   }
@@ -861,7 +869,7 @@ export default function MessagesPage() {
       </div>
 
       {!isMobile || !mobileChatOpen ? (
-        <MobileNavigation />
+        <MobileNavigationWrapper />
       ) : (
         <div className="md:hidden">
           {/* Mobile navigation is hidden when chat is open */}

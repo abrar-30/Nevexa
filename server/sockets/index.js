@@ -38,6 +38,11 @@ const socketHandler = (io) => {
           createdAt: msg.createdAt,
           _id: msg._id
         });
+
+        // Emit unread count update to receiver
+        io.to(String(receiver)).emit("unread-count-update", {
+          increment: 1
+        });
         console.log(`[Socket] Emitted receive-message to receiver room: ${receiver} and sender room: ${sender}`);
       } catch (err) {
         console.error("[Socket] Failed to save message:", err);

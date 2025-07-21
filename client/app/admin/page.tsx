@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Navbar } from "@/components/navbar"
-import { MobileNavigation } from "@/components/mobile-navigation"
+import { MobileNavigationWrapper } from "@/components/mobile-navigation-wrapper"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminPostsTab } from "@/components/admin/admin-posts-tab"
@@ -127,7 +127,7 @@ export default function AdminPage() {
         </Tabs>
       </div>
 
-      <MobileNavigation />
+      <MobileNavigationWrapper />
     </div>
   )
 }

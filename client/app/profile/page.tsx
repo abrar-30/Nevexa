@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Navbar } from "@/components/navbar"
-import { MobileNavigation } from "@/components/mobile-navigation"
+import { MobileNavigationWrapper } from "@/components/mobile-navigation-wrapper"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -171,7 +171,7 @@ export default function ProfilePage() {
           <ProfileSkeleton />
           <div className="space-y-6">{[...Array(2)].map((_, i) => <PostSkeleton key={i} />)}</div>
         </div>
-        <MobileNavigation />
+        <MobileNavigationWrapper />
       </div>
     )
   }
@@ -194,7 +194,7 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         </div>
-        <MobileNavigation />
+        <MobileNavigationWrapper />
       </div>
     )
   }
@@ -351,7 +351,7 @@ export default function ProfilePage() {
           </TabsContent>
         </Tabs>
       </div>
-      <MobileNavigation />
+      <MobileNavigationWrapper />
     </div>
   )
 }

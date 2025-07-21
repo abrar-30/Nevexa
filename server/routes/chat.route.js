@@ -1,6 +1,6 @@
 
 const express = require("express");
-const { getMessages, sendMessage, getConversations, markConversationAsRead } = require("../controllers/chat.controller");
+const { getMessages, sendMessage, getConversations, markConversationAsRead, getTotalUnreadCount } = require("../controllers/chat.controller");
 const passport = require('passport');
 const router = express.Router();
 
@@ -10,6 +10,12 @@ router.post("/", passport.authenticate('jwt', { session: false }), sendMessage);
 
 // GET /api/chat/conversations
 router.get("/conversations", passport.authenticate('jwt', { session: false }), getConversations);
+
+// PATCH /api/chat/conversations/:conversationId/read
+router.patch("/conversations/:conversationId/read", passport.authenticate('jwt', { session: false }), markConversationAsRead);
+
+// GET /api/chat/unread-count
+router.get("/unread-count", passport.authenticate('jwt', { session: false }), getTotalUnreadCount);
 
 // PATCH /api/chat/conversations/:conversationId/read
 router.patch("/conversations/:conversationId/read", passport.authenticate('jwt', { session: false }), markConversationAsRead);
