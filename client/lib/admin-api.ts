@@ -1,5 +1,10 @@
 import { apiRequest } from './api';
 
+// Check admin status
+export async function checkAdminStatus() {
+  return apiRequest('/admin/check');
+}
+
 // Reports
 export async function getAllReports() {
   return apiRequest('/admin/reports');
@@ -51,4 +56,10 @@ export async function editUserProfile(userId, data) {
 }
 export async function deleteUser(userId) {
   return apiRequest(`/admin/users/${userId}`, { method: 'DELETE' });
-} 
+}
+export async function promoteToAdmin(userId) {
+  return apiRequest(`/admin/users/${userId}/promote`, { method: 'PUT' });
+}
+export async function demoteFromAdmin(userId) {
+  return apiRequest(`/admin/users/${userId}/demote`, { method: 'PUT' });
+}

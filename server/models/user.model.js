@@ -58,6 +58,11 @@ const userSchema = new Schema(
       default: "general",
     },
 
+    blocked: {
+      type: Boolean,
+      default: false,
+    },
+
     savedPosts: [
       {
         type: Schema.Types.ObjectId,

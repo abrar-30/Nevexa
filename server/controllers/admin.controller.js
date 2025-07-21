@@ -78,3 +78,33 @@ exports.deleteUser = async (req, res) => {
   await User.findByIdAndDelete(req.params.id);
   res.json({ message: 'User deleted' });
 };
+
+// Promote user to admin
+exports.promoteToAdmin = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { role: 'admin' },
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ message: 'User promoted to admin', user });
+  } catch (error) {
+    res.status(500).json({ message: 'Error promoting user', error: error.message });
+  }
+};
+
+// Demote admin to general user
+exports.demoteFromAdmin = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { role: 'general' },
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ message: 'User demoted to general user', user });
+  } catch (error) {
+    res.status(500).json({ message: 'Error demoting user', error: error.message });
+  }
+};
