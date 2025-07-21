@@ -66,47 +66,21 @@ const fetchUserDetails = async (userIds: any[]): Promise<User[]> => {
     } else if (id && typeof id === 'object' && id._id) {
       return id._id;
     } else {
-      console.warn('Invalid user ID format:', id);
       return null;
     }
   }).filter(id => id !== null);
   
-  console.log('Original userIds:', userIds);
-  console.log('Extracted actual IDs:', actualIds);
-  
   if (actualIds.length === 0) {
-    console.log('No valid IDs found');
     return [];
   }
-  
+
   const url = `/users/batch?ids=${actualIds.join(',')}`;
-  console.log('API URL:', url);
-  
-  // Check JWT token
-  const jwt = localStorage.getItem('jwt');
-  console.log('JWT token present:', !!jwt);
-  if (jwt) {
-    console.log('JWT token length:', jwt.length);
-  }
   
   try {
-    // First test if the API is accessible
-    console.log('Testing API accessibility...');
-    
-    // Test with a simple endpoint first
-    try {
-      const testResponse = await apiRequest<{ message: string }>('/users/test');
-      console.log('Test endpoint response:', testResponse);
-    } catch (testError) {
-      console.error('Test endpoint failed:', testError);
-    }
-    
     const response = await apiRequest<{ users: User[] }>(url);
-    console.log('API response:', response);
     return response.users || [];
   } catch (error) {
     console.error('Failed to fetch user details:', error);
-    console.error('Error details:', error);
     return [];
   }
 }
@@ -114,9 +88,23 @@ const fetchUserDetails = async (userIds: any[]): Promise<User[]> => {
 export default function UserProfilePage() {
   const params = useParams()
   const userId = params?.userId as string
-  
-  console.log('Profile page - userId:', userId);
-  console.log('Profile page - params:', params);
+
+  // Validate userId
+  if (!userId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 pb-16 md:pb-0">
+        <div className="container max-w-4xl mx-auto py-6 px-4">
+          <Card className="text-center p-8">
+            <CardContent>
+              <h2 className="text-xl font-semibold mb-2">Invalid Profile</h2>
+              <p className="text-gray-600 mb-4">No user ID provided</p>
+              <Button onClick={() => window.history.back()}>Go Back</Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
   const [user, setUser] = useState<User | null>(null)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
@@ -134,17 +122,21 @@ export default function UserProfilePage() {
   const { toast } = useToast()
 
   const loadProfile = async () => {
-    if (!userId) return
+    if (!userId) {
+      setIsLoading(false)
+      return
+    }
 
     try {
-      const [profileData, currentUserData] = await Promise.all([fetchUserProfile(userId), fetchCurrentUser()])
+      const [profileData, currentUserData] = await Promise.all([
+        fetchUserProfile(userId),
+        fetchCurrentUser()
+      ])
 
       setUser(profileData)
       setCurrentUser(currentUserData)
-      
-      // Check if current user is following this user
-      // setIsFollowing(profileData.followers.includes(currentUserData._id)) // This line is removed
     } catch (err) {
+      console.error('Profile load error:', err)
       toast({
         title: "Error",
         description: "Failed to load profile. Please try again.",
@@ -288,7 +280,7 @@ export default function UserProfilePage() {
             ))}
           </div>
         </div>
-        <MobileNavigation />
+        <MobileNavigationWrapper />
       </div>
     )
   }

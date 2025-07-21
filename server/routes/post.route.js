@@ -10,14 +10,14 @@ router.get('/', postController.getAllPosts);
 // Get a single post by ID
 router.get('/:postId', postController.getPostById);
 
-// Create a new post with file upload
-router.post('/', upload.single('file'), postController.createPost);
+// Create a new post with file upload (requires authentication)
+router.post('/', passport.authenticate('jwt', { session: false }), upload.single('file'), postController.createPost);
 
-// Update a post with file upload
-router.put('/:postId', upload.single('file'), postController.updatePost);
+// Update a post with file upload (requires authentication)
+router.put('/:postId', passport.authenticate('jwt', { session: false }), upload.single('file'), postController.updatePost);
 
-// Delete a post
-router.delete('/:postId', postController.deletePost);
+// Delete a post (requires authentication)
+router.delete('/:postId', passport.authenticate('jwt', { session: false }), postController.deletePost);
 
 // Like a post
 router.patch('/:id/like', passport.authenticate('jwt', { session: false }), postController.likePost);

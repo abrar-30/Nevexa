@@ -178,7 +178,6 @@ export default function PeoplePage() {
   }
 
   const handleUserClick = (userId: string) => {
-    console.log('Navigating to profile:', userId);
     router.push(`/profile/${userId}`)
   }
 

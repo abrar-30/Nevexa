@@ -1,4 +1,4 @@
-import { apiRequest, setJwtToken, removeJwtToken } from './api';
+import { apiRequest, setJwtToken, removeJwtToken, getJwtToken } from './api';
 import { ApiError } from './api';
 import type { User } from "./posts-api"
 import { performanceMonitor } from "./performance"
@@ -105,4 +105,25 @@ export async function registerUser(userData: {
 
 export function logoutUser() {
   removeJwtToken()
+}
+
+// Debug function to check authentication status
+export function debugAuthStatus(): void {
+  const token = getJwtToken()
+  console.log('🔐 Auth Debug Status:')
+  console.log('Token exists:', !!token)
+  if (token) {
+    console.log('Token length:', token.length)
+    console.log('Token preview:', token.substring(0, 20) + '...')
+
+    // Try to decode JWT payload (without verification)
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      console.log('Token payload:', payload)
+      console.log('Token expires:', new Date(payload.exp * 1000))
+      console.log('Token expired:', Date.now() > payload.exp * 1000)
+    } catch (e) {
+      console.log('Could not decode token:', e)
+    }
+  }
 }

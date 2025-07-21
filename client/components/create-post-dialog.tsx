@@ -101,8 +101,22 @@ export function CreatePostDialog({ open, onOpenChange, onPostCreated }: CreatePo
         description: "Your post has been shared successfully!",
       })
     } catch (err) {
-      const errorMessage =
-        err instanceof ApiError ? `Failed to create post: ${err.message}` : "Failed to create post. Please try again."
+      console.error("Failed to create post:", err)
+
+      let errorMessage = "Failed to create post. Please try again."
+
+      if (err instanceof ApiError) {
+        errorMessage = err.message
+
+        // Handle authentication errors specifically
+        if (err.message.includes('Authentication required') || err.message.includes('Unauthorized')) {
+          errorMessage = "Your session has expired. Please log in again."
+          // Optionally redirect to login
+          setTimeout(() => {
+            window.location.href = '/auth/login'
+          }, 2000)
+        }
+      }
 
       toast({
         title: "Error",

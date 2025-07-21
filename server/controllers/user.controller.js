@@ -25,7 +25,14 @@ exports.getMe = getMe;
 const getUserById = async (req, res) => {
   const User = require('../models/user.model');
   try {
-    const user = await User.findById(req.params.id)
+    const userId = req.params.id;
+
+    // Validate user ID format
+    if (!userId || !userId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
+    }
+
+    const user = await User.findById(userId)
       .populate('followers', 'name email avatar')
       .populate('following', 'name email avatar')
       .select('-hash -salt');
