@@ -5,11 +5,14 @@
   "version": "1.0.0",
   
   "main": "app.production.js",
-  
+
   "scripts": {
+
+
+  "start": "node app.production.js",
   
     
-  "start": "node app.production.js",
+  "start:minimal": "node app.minimal.js",
   
     
   "dev": "nodemon app.production.js",
@@ -48,7 +51,7 @@
   "dotenv": "^17.1.0",
   
     
-  "express": "^5.1.0",
+  "express": "^4.18.2",
   
     
   "joi": "^17.0.0",

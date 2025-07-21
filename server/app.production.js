@@ -43,10 +43,7 @@ const allowedOrigins = [
   'http://localhost:3001',
   'https://nevexa.vercel.app',
   'https://nevexa-git-main-abrar-30s-projects.vercel.app',
-  'https://nevexa-abrar-30s-projects.vercel.app',
-  /^https:\/\/nevexa-.*\.vercel\.app$/,
-  // Add any additional Vercel preview URLs
-  /^https:\/\/nevexa-.*-abrar-30s-projects\.vercel\.app$/
+  'https://nevexa-abrar-30s-projects.vercel.app'
 ];
 
 console.log('🌐 Allowed CORS origins:', allowedOrigins);
@@ -105,22 +102,67 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-// API Routes
-const authRoutes = require('./routes/auth.route');
-const postRoutes = require('./routes/post.route');
-const chatRoutes = require('./routes/chat.route');
-const adminRoutes = require('./routes/admin.route');
-const userRoutes = require('./routes/user.route');
-const commentRoutes = require('./routes/comment.route');
-const reportRoutes = require('./routes/report.route');
+// Load routes safely one by one
+const loadRoutes = () => {
+  try {
+    console.log('🔄 Starting route loading...');
 
-app.use('/api/auth', authRoutes);
-app.use('/api/posts', postRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/comments', commentRoutes);
+    // Load auth routes
+    console.log('Loading auth routes...');
+    const authRoutes = require('./routes/auth.route');
+    app.use('/api/auth', authRoutes);
+    console.log('✅ Auth routes loaded');
+
+    // Load post routes
+    console.log('Loading post routes...');
+    const postRoutes = require('./routes/post.route');
+    app.use('/api/posts', postRoutes);
+    console.log('✅ Post routes loaded');
+
+    // Load chat routes
+    console.log('Loading chat routes...');
+    const chatRoutes = require('./routes/chat.route');
+    app.use('/api/chat', chatRoutes);
+    console.log('✅ Chat routes loaded');
+
+    // Load admin routes
+    console.log('Loading admin routes...');
+    const adminRoutes = require('./routes/admin.route');
+    app.use('/api/admin', adminRoutes);
+    console.log('✅ Admin routes loaded');
+
+    // Load report routes
+    console.log('Loading report routes...');
+    const reportRoutes = require('./routes/report.route');
+    app.use('/api/reports', reportRoutes);
+    console.log('✅ Report routes loaded');
+
+    // Load user routes
+    console.log('Loading user routes...');
+    const userRoutes = require('./routes/user.route');
+    app.use('/api/users', userRoutes);
+    console.log('✅ User routes loaded');
+
+    // Load comment routes
+    console.log('Loading comment routes...');
+    const commentRoutes = require('./routes/comment.route');
+    app.use('/api/comments', commentRoutes);
+    console.log('✅ Comment routes loaded');
+
+    console.log('🎉 All routes loaded successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Error loading routes:', error);
+    console.error('Stack trace:', error.stack);
+    return false;
+  }
+};
+
+// Load routes
+if (!loadRoutes()) {
+  console.error('❌ Failed to load routes, exiting...');
+  process.exit(1);
+}
 
 // Root route
 app.get('/', (req, res) => {

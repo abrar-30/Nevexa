@@ -104,38 +104,46 @@ const markConversationAsRead = async (req, res) => {
 // Get unread count for a conversation
 const getUnreadCount = async (currentUserId, otherUserId) => {
   try {
+    // Ensure IDs are properly formatted
+    const currentUserObjectId = mongoose.Types.ObjectId.isValid(currentUserId)
+      ? mongoose.Types.ObjectId.createFromHexString(currentUserId)
+      : currentUserId;
+    const otherUserObjectId = mongoose.Types.ObjectId.isValid(otherUserId)
+      ? mongoose.Types.ObjectId.createFromHexString(otherUserId)
+      : otherUserId;
+
     // Find the chat
     const chat = await Chat.findOne({
-      participants: { $all: [currentUserId, otherUserId] }
+      participants: { $all: [currentUserObjectId, otherUserObjectId] }
     });
 
     if (!chat) {
       // If no chat exists, count all messages from other user
       const count = await Message.countDocuments({
-        sender: otherUserId,
-        receiver: currentUserId
+        sender: otherUserObjectId,
+        receiver: currentUserObjectId
       });
       return count;
     }
 
     // Find current user's lastRead
     const currentUserParticipant = chat.participants.find(
-      p => p.user.toString() === currentUserId.toString()
+      p => p.user && p.user.toString() === currentUserObjectId.toString()
     );
 
     if (!currentUserParticipant || !currentUserParticipant.lastRead) {
       // If no lastRead, count all messages from other user
       const count = await Message.countDocuments({
-        sender: otherUserId,
-        receiver: currentUserId
+        sender: otherUserObjectId,
+        receiver: currentUserObjectId
       });
       return count;
     }
 
     // Count messages sent after lastRead
     const count = await Message.countDocuments({
-      sender: otherUserId,
-      receiver: currentUserId,
+      sender: otherUserObjectId,
+      receiver: currentUserObjectId,
       createdAt: { $gt: currentUserParticipant.lastRead }
     });
 
@@ -189,7 +197,7 @@ const getConversations = async (req, res) => {
 
     // For each participant, get user info, all messages, and unread count
     const conversations = await Promise.all(participants.map(async (p) => {
-      const user = await User.findById(new mongoose.Types.ObjectId(p._id)).select("_id name avatar");
+      const user = await User.findById(mongoose.Types.ObjectId.createFromHexString(p._id)).select("_id name avatar");
       const messages = await Message.find({
         $or: [
           { sender: userId, receiver: p._id },

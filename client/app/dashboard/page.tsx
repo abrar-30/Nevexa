@@ -16,7 +16,6 @@ import { getAllPosts, likePost, unlikePost, addComment, deletePost, type Post } 
 import { getCurrentUser, type AuthUser } from "@/lib/auth-api"
 import { ApiError } from "@/lib/api"
 import { PostsList } from "@/components/posts-list";
-import { ConnectivityTest } from "@/components/connectivity-test";
 
 interface DashboardState {
   posts: Post[]
@@ -361,11 +360,6 @@ export default function DashboardPage() {
             </AlertDescription>
           </Alert>
         )}
-
-        {/* Connectivity Test - Remove after debugging */}
-        <div className="mb-6">
-          <ConnectivityTest />
-        </div>
 
         <PostsList
           posts={state.posts}
