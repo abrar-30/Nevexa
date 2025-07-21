@@ -1,5 +1,31 @@
 // API configuration and helper functions
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000' 
+const getApiBaseUrl = () => {
+  // Check environment variable first
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    console.log('🌐 Using API URL from environment:', process.env.NEXT_PUBLIC_API_URL)
+    return process.env.NEXT_PUBLIC_API_URL
+  }
+
+  // Fallback based on hostname
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname
+    console.log('🌐 Current hostname:', hostname)
+
+    if (hostname.includes('vercel.app') || hostname.includes('nevexa')) {
+      const apiUrl = 'https://nevexa.onrender.com/api'
+      console.log('🌐 Using production API URL:', apiUrl)
+      return apiUrl
+    }
+  }
+
+  // Local development fallback
+  const localUrl = 'http://localhost:5000/api'
+  console.log('🌐 Using local development API URL:', localUrl)
+  return localUrl
+}
+
+const API_BASE_URL = getApiBaseUrl()
+console.log('🌐 Final API Base URL:', API_BASE_URL)
 interface ApiResponse<T> {
   success?: boolean
   data?: T
@@ -96,6 +122,9 @@ export function removeJwtToken() {
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
 
+  console.log('🌐 Making API request to:', url)
+  console.log('🔧 Request options:', { method: options.method || 'GET', endpoint })
+
   // Attach JWT if present
   const jwt = getJwtToken()
   const headers: Record<string, string> = {
@@ -104,6 +133,9 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   }
   if (jwt) {
     headers["Authorization"] = `Bearer ${jwt}`
+    console.log('🔑 JWT token attached (length:', jwt.length, ')')
+  } else {
+    console.log('⚠️ No JWT token found')
   }
 
   const config: RequestInit = {
@@ -131,7 +163,16 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       // })
       
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      const timeoutId = setTimeout(() => {
+        console.log('⏰ Request timeout after 5 seconds for:', url)
+        controller.abort()
+      }, 5000)
+
+      console.log('📡 Sending fetch request with config:', {
+        method: config.method || 'GET',
+        headers: Object.keys(config.headers || {}),
+        hasBody: !!config.body
+      })
 
       const response = await fetch(url, {
         ...config,
@@ -139,6 +180,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       })
 
       clearTimeout(timeoutId)
+      console.log('✅ Fetch response received:', response.status, response.statusText)
 
       // Remove debug logs for production
       // console.log(`API response status: ${response.status} for ${url}`)
@@ -168,23 +210,36 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       // console.log(`API response data:`, data)
       return data
     } catch (error) {
-      // Only log errors that are not 401 or 403 Unauthorized/Forbidden
-      if (!(error instanceof ApiError && (error.status === 401 || error.status === 403))) {
-        console.error(`API request failed for ${url}:`, error)
-      }
+      console.error(`❌ API request failed for ${url}:`, error)
+      console.error('Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      })
 
       if (error instanceof ApiError) {
         throw error
       }
 
-      // Handle network errors
-      if (error instanceof TypeError && typeof error.message === 'string' && error.message.includes("fetch")) {
-        throw new ApiError("Network connection failed. Please check your internet connection.", 0, "NETWORK_ERROR")
+      // Handle network errors (CORS, DNS, connection refused, etc.)
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        console.error('🌐 Network error detected. Possible causes:')
+        console.error('- CORS policy blocking the request')
+        console.error('- Server is down or unreachable')
+        console.error('- DNS resolution failed')
+        console.error('- SSL/TLS certificate issues')
+
+        throw new ApiError(
+          `Network error: Unable to connect to ${API_BASE_URL}. This might be a CORS issue or the server might be down.`,
+          0,
+          "NETWORK_ERROR"
+        )
       }
 
       // Handle timeout errors
       if (error instanceof Error && error.name === "AbortError") {
-        throw new ApiError("Request timed out. Please try again.", 0, "TIMEOUT_ERROR")
+        console.error('⏰ Request timeout detected')
+        throw new ApiError("Request timed out after 5 seconds. The server might be slow or unreachable.", 0, "TIMEOUT_ERROR")
       }
 
       // Handle other errors

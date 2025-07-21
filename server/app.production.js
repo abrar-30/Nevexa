@@ -44,12 +44,20 @@ const allowedOrigins = [
   'https://nevexa.vercel.app',
   'https://nevexa-git-main-abrar-30s-projects.vercel.app',
   'https://nevexa-abrar-30s-projects.vercel.app',
-  /^https:\/\/nevexa-.*\.vercel\.app$/
+  /^https:\/\/nevexa-.*\.vercel\.app$/,
+  // Add any additional Vercel preview URLs
+  /^https:\/\/nevexa-.*-abrar-30s-projects\.vercel\.app$/
 ];
+
+console.log('🌐 Allowed CORS origins:', allowedOrigins);
 
 app.use(cors({
   origin: (origin, callback) => {
+    console.log('CORS request from origin:', origin);
+
+    // Allow requests with no origin (mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
+
     const isAllowed = allowedOrigins.some(allowedOrigin => {
       if (typeof allowedOrigin === 'string') {
         return allowedOrigin === origin;
@@ -58,22 +66,44 @@ app.use(cors({
       }
       return false;
     });
+
     if (isAllowed) {
+      console.log('CORS allowed for origin:', origin);
       return callback(null, true);
     } else {
+      console.error('CORS blocked for origin:', origin);
       return callback(new Error(`CORS not allowed for ${origin}`), false);
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Set-Cookie']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Cache-Control',
+    'X-File-Name'
+  ],
+  exposedHeaders: ['Set-Cookie'],
+  preflightContinue: false,
+  optionsSuccessStatus: 200
 }));
 
 app.use(passport.initialize());
 
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(express.json({ limit: '10mb' }));
+
+// Handle preflight requests explicitly
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(200);
+});
 
 // API Routes
 const authRoutes = require('./routes/auth.route');
