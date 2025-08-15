@@ -33,7 +33,7 @@ router.get('/', optionalJwtAuth, userController.getAllUsers);
 
 // Parameterized routes - must come after specific routes
 router.get('/:id', passport.authenticate('jwt', { session: false }), userController.getUserById);
-router.put('/:id', passport.authenticate('jwt', { session: false }), validate(updateUserSchema), userController.updateUser);
+router.put('/:id', passport.authenticate('jwt', { session: false }), upload.single('avatar'), userController.updateUser);
 router.patch('/:id/follow', passport.authenticate('jwt', { session: false }), userController.followUser);
 router.patch('/:id/unfollow', passport.authenticate('jwt', { session: false }), userController.unfollowUser);
 

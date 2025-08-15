@@ -68,11 +68,26 @@ const updateUser = async (req, res) => {
   }
 
   try {
+    console.log('Updating user profile:', req.params.id);
+    console.log('Request body:', req.body);
+    console.log('File uploaded:', req.file);
+
     const updates = {};
-    // Only allow updating certain fields
-    ['name', 'avatar', 'location', 'bio', 'interests'].forEach(field => {
-      if (req.body[field] !== undefined) updates[field] = req.body[field];
+
+    // Handle text fields
+    ['name', 'location', 'bio', 'interests'].forEach(field => {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
     });
+
+    // Handle avatar upload
+    if (req.file && req.file.path) {
+      updates.avatar = req.file.path; // Cloudinary URL
+      console.log('Avatar updated to:', req.file.path);
+    }
+
+    console.log('Updates to apply:', updates);
 
     const user = await User.findByIdAndUpdate(
       req.params.id,
@@ -84,6 +99,7 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
+    console.log('User updated successfully:', user._id);
     res.json(user);
   } catch (err) {
     console.error('Error updating user:', err);

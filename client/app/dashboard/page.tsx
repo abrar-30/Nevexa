@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Plus, RefreshCw, AlertCircle, Wifi } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { getAllPosts, likePost, unlikePost, addComment, deletePost, type Post } from "@/lib/posts-api"
-import { getCurrentUser, type AuthUser } from "@/lib/auth-api"
+import { getCurrentUser, debugAuthStatus, isAuthenticated, type AuthUser } from "@/lib/auth-api"
 import { ApiError } from "@/lib/api"
 import { PostsList } from "@/components/posts-list";
 
@@ -227,7 +227,10 @@ export default function DashboardPage() {
   }
 
   const handleComment = async (postId: string, comment: string) => {
+    console.log('🔄 Attempting to add comment...')
+
     if (!state.currentUser) {
+      console.log('❌ No current user found')
       toast({
         title: "Authentication Required",
         description: "Please log in to comment on posts.",
@@ -236,17 +239,44 @@ export default function DashboardPage() {
       return
     }
 
+    // Check if token exists (but don't auto-logout on token issues)
+    const tokenExists = !!localStorage.getItem('jwt')
+    if (!tokenExists) {
+      console.log('❌ No JWT token found')
+      toast({
+        title: "Session Expired",
+        description: "Please log in again to comment on posts.",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
-      await addComment(postId, comment)
+      console.log('✅ User authenticated, adding comment...')
+      const newComment = await addComment(postId, comment)
+      console.log('✅ Comment created:', newComment)
+
+      // Refresh posts to show the new comment
+      console.log('🔄 Refreshing posts...')
       await loadPosts(true)
+
       toast({
         title: "Comment Added",
         description: "Your comment has been posted.",
       })
-    } catch (err) {
+    } catch (err: any) {
+      console.error('❌ Comment error:', err)
+
+      let errorMessage = "Failed to add comment. Please try again."
+
+      if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
+        errorMessage = "Authentication failed. You may need to log in again."
+        console.log('🔐 401 error - but not auto-redirecting')
+      }
+
       toast({
         title: "Error",
-        description: "Failed to add comment. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {

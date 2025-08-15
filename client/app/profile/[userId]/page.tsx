@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PostCard } from "@/components/post-card"
-import { EditProfileDialog } from "@/components/edit-profile-dialog"
+import { NewEditProfileDialog } from "@/components/new-edit-profile-dialog"
 import { FollowersDialog } from "@/components/followers-dialog"
 import { MessageDialog } from "@/components/message-dialog"
 import { Edit, MessageCircle, MapPin, Calendar, UserPlus, Users, Heart } from "lucide-react"
@@ -351,9 +351,9 @@ export default function UserProfilePage() {
 
               <div className="flex space-x-3 mt-4 md:mt-0">
                 {isOwnProfile ? (
-                  <Button 
+                  <Button
                     onClick={() => setShowEditProfile(true)}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg"
+                    className="bg-black hover:bg-gray-800 text-white shadow-lg"
                   >
                     <Edit className="h-4 w-4 mr-2" />
                     Edit Profile
@@ -493,11 +493,11 @@ export default function UserProfilePage() {
       </div>
 
       {isOwnProfile && (
-        <EditProfileDialog
+        <NewEditProfileDialog
           open={showEditProfile}
           onOpenChange={setShowEditProfile}
           user={user}
-          onUserUpdated={(updatedUser) => setUser(updatedUser)}
+          onUserUpdated={(updatedUser: User) => setUser(updatedUser)}
         />
       )}
 

@@ -8,14 +8,29 @@ exports.createComment = async (req, res) => {
     if (!content || !post) {
       return res.status(400).json({ error: 'Content and post are required.' });
     }
+
+    // Create the comment
     const comment = new Comment({
       content,
       user: req.user._id,
       post
     });
     await comment.save();
-    res.status(201).json(comment);
+
+    // Add comment to the post's comments array
+    await Post.findByIdAndUpdate(
+      post,
+      { $push: { comments: comment._id } },
+      { new: true }
+    );
+
+    // Populate the comment with user info before returning
+    const populatedComment = await Comment.findById(comment._id)
+      .populate('user', 'name avatar');
+
+    res.status(201).json(populatedComment);
   } catch (err) {
+    console.error('Create comment error:', err);
     res.status(500).json({ error: err.message });
   }
 };

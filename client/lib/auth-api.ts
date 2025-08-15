@@ -122,8 +122,29 @@ export function debugAuthStatus(): void {
       console.log('Token payload:', payload)
       console.log('Token expires:', new Date(payload.exp * 1000))
       console.log('Token expired:', Date.now() > payload.exp * 1000)
+
+      if (Date.now() > payload.exp * 1000) {
+        console.log('⚠️ Token is expired! User needs to log in again.')
+        return false
+      }
+      return true
     } catch (e) {
       console.log('Could not decode token:', e)
+      return false
     }
+  }
+  return false
+}
+
+// Check if user is authenticated
+export function isAuthenticated(): boolean {
+  const token = getJwtToken()
+  if (!token) return false
+
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return Date.now() < payload.exp * 1000
+  } catch (e) {
+    return false
   }
 }

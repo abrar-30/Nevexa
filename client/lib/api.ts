@@ -128,9 +128,14 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   // Attach JWT if present
   const jwt = getJwtToken()
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...options.headers as any,
   }
+
+  // Only set Content-Type for non-FormData requests
+  if (!(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json"
+  }
+
   if (jwt) {
     headers["Authorization"] = `Bearer ${jwt}`
     console.log('🔑 JWT token attached (length:', jwt.length, ')')
@@ -163,10 +168,15 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       // })
       
       const controller = new AbortController()
+
+      // Increase timeout for file uploads
+      const isFileUpload = config.body instanceof FormData
+      const timeoutDuration = isFileUpload ? 30000 : 5000 // 30s for uploads, 5s for regular requests
+
       const timeoutId = setTimeout(() => {
-        console.log('⏰ Request timeout after 5 seconds for:', url)
+        console.log(`⏰ Request timeout after ${timeoutDuration/1000} seconds for:`, url)
         controller.abort()
-      }, 5000)
+      }, timeoutDuration)
 
       console.log('📡 Sending fetch request with config:', {
         method: config.method || 'GET',

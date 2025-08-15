@@ -149,14 +149,23 @@ export async function unlikePost(postId: string): Promise<void> {
 // Add comment to post
 export async function addComment(postId: string, content: string): Promise<Comment> {
   try {
+    console.log('🔄 Adding comment to post:', postId)
+    console.log('💬 Comment content:', content)
+
     const response = await apiRequest<Comment>(`/comments`, {
       method: "POST",
       body: JSON.stringify({ content, post: postId }),
-      headers: { "Content-Type": "application/json" },
     })
+
+    console.log('✅ Comment added successfully:', response)
+    // Server returns comment directly, not wrapped in { comment: ... }
     return response
   } catch (error) {
-    console.error("Failed to add comment:", error)
+    console.error("❌ Failed to add comment:", error)
+    if (error instanceof Error && error.message.includes('401')) {
+      console.error('🔐 Authentication error - JWT token might be missing or expired')
+      console.error('💡 Try logging out and logging back in')
+    }
     throw error
   }
 }
