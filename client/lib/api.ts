@@ -220,12 +220,15 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       // console.log(`API response data:`, data)
       return data
     } catch (error) {
-      console.error(`❌ API request failed for ${url}:`, error)
-      console.error('Error details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      })
+      // Only log non-401 errors to avoid spam in console
+      if (!(error instanceof ApiError && error.status === 401)) {
+        console.error(`❌ API request failed for ${url}:`, error)
+        console.error('Error details:', {
+          name: error instanceof Error ? error.name : 'Unknown',
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined
+        })
+      }
 
       if (error instanceof ApiError) {
         throw error

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PostCard } from "@/components/post-card"
 import { NewEditProfileDialog } from "@/components/new-edit-profile-dialog"
+import { InstantAuthGuard } from "@/components/instant-auth-guard"
 import { FollowersDialog } from "@/components/followers-dialog"
 import { MessageDialog } from "@/components/message-dialog"
 import { Edit, MessageCircle, MapPin, Calendar, UserPlus, Users, Heart } from "lucide-react"
@@ -85,7 +86,7 @@ const fetchUserDetails = async (userIds: any[]): Promise<User[]> => {
   }
 }
 
-export default function UserProfilePage() {
+function UserProfilePageContent() {
   const params = useParams()
   const userId = params?.userId as string
 
@@ -548,5 +549,13 @@ export default function UserProfilePage() {
 
       <MobileNavigationWrapper />
     </div>
+  )
+}
+
+export default function UserProfilePage() {
+  return (
+    <InstantAuthGuard>
+      <UserProfilePageContent />
+    </InstantAuthGuard>
   )
 }

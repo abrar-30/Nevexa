@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { io, Socket } from "socket.io-client";
 import { useSearchParams } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
+import { InstantAuthGuard } from "@/components/instant-auth-guard";
 
 interface CurrentUser {
   _id: string;
@@ -30,7 +31,7 @@ interface Message {
   read: boolean;
 }
 
-export default function MessagesPage() {
+function MessagesPageContent() {
   // Core state
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [userLoading, setUserLoading] = useState(true);
@@ -109,8 +110,11 @@ export default function MessagesPage() {
       try {
         const user = await getCurrentUser();
         setCurrentUser(user);
-      } catch (error) {
-        console.error('Failed to load current user:', error);
+      } catch (error: any) {
+        // Suppress 401 errors - auth guard will handle redirects
+        if (!error.message?.includes('401') && !error.message?.includes('Unauthorized')) {
+          console.error('Failed to load current user:', error);
+        }
         setCurrentUser(null);
       } finally {
         setUserLoading(false);
@@ -139,9 +143,12 @@ export default function MessagesPage() {
         } else {
           setConversations([]);
         }
-      } catch (error) {
-        console.error('Failed to load conversations:', error);
-        setConversationsError(error instanceof Error ? error.message : 'Failed to load conversations');
+      } catch (error: any) {
+        // Suppress 401 errors - auth guard will handle redirects
+        if (!error.message?.includes('401') && !error.message?.includes('Unauthorized')) {
+          console.error('Failed to load conversations:', error);
+          setConversationsError(error instanceof Error ? error.message : 'Failed to load conversations');
+        }
         setConversations([]);
       } finally {
         setConversationsLoading(false);
@@ -345,23 +352,24 @@ export default function MessagesPage() {
       // Mark conversation as read if there are unread messages
       if (conversation.unreadCount > 0) {
         const unreadAmount = conversation.unreadCount;
-        try {
-          await markConversationAsRead(conversation.user.id);
 
-          // Update the conversation in the list to clear unread count
-          setConversations(prev =>
-            prev.map(conv =>
-              conv.id === conversation.id
-                ? { ...conv, unreadCount: 0 }
-                : conv
-            )
-          );
+        // Optimistically update UI first for better UX
+        setConversations(prev =>
+          prev.map(conv =>
+            conv.id === conversation.id
+              ? { ...conv, unreadCount: 0 }
+              : conv
+          )
+        );
+        decrementUnreadCount(unreadAmount);
 
-          // Decrement the global unread count
-          decrementUnreadCount(unreadAmount);
-        } catch (error) {
-          console.error('Failed to mark conversation as read:', error);
-        }
+        // Try to mark as read on server (non-blocking)
+        markConversationAsRead(conversation.user.id).catch((error: any) => {
+          // Silently handle errors - UI is already updated
+          if (!error.message?.includes('401') && !error.message?.includes('Unauthorized')) {
+            console.error('Failed to mark conversation as read on server:', error);
+          }
+        });
       }
       
       if (isMobile) {
@@ -491,8 +499,11 @@ export default function MessagesPage() {
         content: messageInput.trim()
       });
       
-    } catch (error) {
-      console.error('Failed to send message:', error);
+    } catch (error: any) {
+      // Suppress 401 errors - auth guard will handle redirects
+      if (!error.message?.includes('401') && !error.message?.includes('Unauthorized')) {
+        console.error('Failed to send message:', error);
+      }
     } finally {
       setSending(false);
     }
@@ -877,4 +888,12 @@ export default function MessagesPage() {
       )}
     </div>
   );
+}
+
+export default function MessagesPage() {
+  return (
+    <InstantAuthGuard>
+      <MessagesPageContent />
+    </InstantAuthGuard>
+  )
 }

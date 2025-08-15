@@ -82,17 +82,37 @@ export async function getMessages(user1: string, user2: string): Promise<Message
 
 // Send a new message
 export async function sendMessage(data: SendMessageRequest): Promise<Message> {
-  return apiRequest<Message>('/chat', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+  try {
+    return await apiRequest<Message>('/chat', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  } catch (error: any) {
+    // Re-throw error for sendMessage as it's critical for UX
+    // But suppress 401 error logging
+    if (!error.message?.includes('401') && !error.message?.includes('Unauthorized')) {
+      console.error('Failed to send message:', error);
+    }
+    throw error;
+  }
 }
 
 // Mark conversation as read
 export async function markConversationAsRead(conversationId: string): Promise<void> {
-  return apiRequest<void>(`/chat/conversations/${conversationId}/read`, {
-    method: 'PATCH',
-  });
+  try {
+    console.log('Marking conversation as read:', conversationId);
+    const response = await apiRequest<{ success: boolean; message: string; messagesMarked: number }>(`/chat/conversations/${conversationId}/read`, {
+      method: 'PATCH',
+    });
+    console.log('Mark as read response:', response);
+    return;
+  } catch (error: any) {
+    // Suppress 401 errors and other API errors - not critical for UX
+    if (!error.message?.includes('401') && !error.message?.includes('Unauthorized')) {
+      console.error('Failed to mark conversation as read:', error);
+    }
+    // Don't throw - this is not critical for user experience
+  }
 }
 
 // Search users for starting new conversations

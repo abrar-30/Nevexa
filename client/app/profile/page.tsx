@@ -4,8 +4,9 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth-api"
 import { Loader2 } from "lucide-react"
+import { InstantAuthGuard } from "@/components/instant-auth-guard"
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -69,4 +70,12 @@ export default function ProfilePage() {
   }
 
   return null
+}
+
+export default function ProfilePage() {
+  return (
+    <InstantAuthGuard>
+      <ProfilePageContent />
+    </InstantAuthGuard>
+  )
 }

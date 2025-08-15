@@ -17,7 +17,4 @@ router.patch("/conversations/:conversationId/read", passport.authenticate('jwt',
 // GET /api/chat/unread-count
 router.get("/unread-count", passport.authenticate('jwt', { session: false }), getTotalUnreadCount);
 
-// PATCH /api/chat/conversations/:conversationId/read
-router.patch("/conversations/:conversationId/read", passport.authenticate('jwt', { session: false }), markConversationAsRead);
-
 module.exports = router;

@@ -14,6 +14,7 @@ import { Plus, RefreshCw, AlertCircle, Wifi } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { getAllPosts, likePost, unlikePost, addComment, deletePost, type Post } from "@/lib/posts-api"
 import { getCurrentUser, debugAuthStatus, isAuthenticated, type AuthUser } from "@/lib/auth-api"
+import { InstantAuthGuard } from "@/components/instant-auth-guard"
 import { ApiError } from "@/lib/api"
 import { PostsList } from "@/components/posts-list";
 
@@ -29,7 +30,7 @@ interface DashboardState {
   isInitialized: boolean
 }
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const router = useRouter()
   const [state, setState] = useState<DashboardState>({
     posts: [],
@@ -86,9 +87,8 @@ export default function DashboardPage() {
             errorMessage = "Unable to connect to server. Showing cached content."
             isOffline = true
           } else if (err.status === 401) {
-            errorMessage = "Please log in to view posts."
-            // Redirect to login after a delay
-            setTimeout(() => router.push("/auth/login"), 2000)
+            // Silent redirect for 401 errors - no error message
+            return
           } else {
             errorMessage = `Failed to load posts: ${err.message}`
           }
@@ -124,14 +124,13 @@ export default function DashboardPage() {
       updateState({ currentUser: user })
       console.log("Successfully loaded current user:", user?.name)
     } catch (err) {
-      console.error("Error loading current user:", err)
-
+      // Suppress all errors during user loading - auth guard will handle redirects
       if (err instanceof ApiError && err.status === 401) {
-        // User not authenticated, redirect to login
-        router.push("/auth/login")
+        // Silent return for 401 errors
         return
       }
 
+      // Only show non-auth errors
       if (err instanceof ApiError && err.status !== 401) {
         toast({
           title: "Warning",
@@ -198,7 +197,12 @@ export default function DashboardPage() {
       } else {
         await likePost(postId)
       }
-    } catch (err) {
+    } catch (err: any) {
+      // Suppress 401 errors - auth guard will handle redirects
+      if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
+        return
+      }
+
       console.error("Error updating like:", err)
 
       // Revert optimistic update on error
@@ -265,18 +269,15 @@ export default function DashboardPage() {
         description: "Your comment has been posted.",
       })
     } catch (err: any) {
-      console.error('❌ Comment error:', err)
-
-      let errorMessage = "Failed to add comment. Please try again."
-
+      // Suppress 401 errors - auth guard will handle redirects
       if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
-        errorMessage = "Authentication failed. You may need to log in again."
-        console.log('🔐 401 error - but not auto-redirecting')
+        return
       }
 
+      console.error('❌ Comment error:', err)
       toast({
         title: "Error",
-        description: errorMessage,
+        description: "Failed to add comment. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -305,6 +306,11 @@ export default function DashboardPage() {
         description: "Your post has been deleted successfully.",
       })
     } catch (error: any) {
+      // Suppress 401 errors - auth guard will handle redirects
+      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        return
+      }
+
       toast({
         title: "Error",
         description: error.message || "Failed to delete post",
@@ -409,5 +415,13 @@ export default function DashboardPage() {
 
       <MobileNavigationWrapper />
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <InstantAuthGuard>
+      <DashboardPageContent />
+    </InstantAuthGuard>
   )
 }

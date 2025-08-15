@@ -1,6 +1,5 @@
 const Message = require("../models/message.model");
 const User = require("../models/user.model");
-const Chat = require("../models/chat.model");
 const mongoose = require("mongoose");
 
 // Fetch chat history between two users
@@ -62,39 +61,38 @@ const markConversationAsRead = async (req, res) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    
-    const { conversationId } = req.params;
-    const currentUserId = req.user._id;
 
-    // Find or create chat for this conversation
-    let chat = await Chat.findOne({
-      participants: { $all: [conversationId, currentUserId] }
+    const { conversationId } = req.params; // This is actually the other user's ID
+    const currentUserId = req.user._id.toString();
+
+    console.log('Marking conversation as read:', {
+      currentUserId,
+      otherUserId: conversationId
     });
 
-    if (!chat) {
-      // Create new chat if it doesn't exist
-      chat = new Chat({
-        participants: [
-          { user: currentUserId, lastRead: new Date() },
-          { user: conversationId, lastRead: null }
-        ]
-      });
-    } else {
-      // Update current user's lastRead
-      const participantIndex = chat.participants.findIndex(
-        p => p.user.toString() === currentUserId.toString()
-      );
-      
-      if (participantIndex !== -1) {
-        chat.participants[participantIndex].lastRead = new Date();
-      } else {
-        // Add current user to participants if not present
-        chat.participants.push({ user: currentUserId, lastRead: new Date() });
-      }
+    // Validate that conversationId is a valid user ID
+    if (!conversationId || conversationId.length !== 24) {
+      return res.status(400).json({ error: 'Invalid conversation ID' });
     }
 
-    await chat.save();
-    res.json({ success: true, message: 'Conversation marked as read' });
+    // Mark all messages from the other user to current user as read
+    const result = await Message.updateMany(
+      {
+        sender: conversationId,
+        receiver: currentUserId,
+        isRead: false
+      },
+      {
+        $set: { isRead: true }
+      }
+    );
+
+    console.log(`Marked ${result.modifiedCount} messages as read`);
+    res.json({
+      success: true,
+      message: 'Conversation marked as read',
+      messagesMarked: result.modifiedCount
+    });
   } catch (err) {
     console.error('Mark conversation as read error:', err);
     res.status(500).json({ error: 'Failed to mark conversation as read' });
@@ -104,47 +102,11 @@ const markConversationAsRead = async (req, res) => {
 // Get unread count for a conversation
 const getUnreadCount = async (currentUserId, otherUserId) => {
   try {
-    // Ensure IDs are properly formatted
-    const currentUserObjectId = mongoose.Types.ObjectId.isValid(currentUserId)
-      ? mongoose.Types.ObjectId.createFromHexString(currentUserId)
-      : currentUserId;
-    const otherUserObjectId = mongoose.Types.ObjectId.isValid(otherUserId)
-      ? mongoose.Types.ObjectId.createFromHexString(otherUserId)
-      : otherUserId;
-
-    // Find the chat
-    const chat = await Chat.findOne({
-      participants: { $all: [currentUserObjectId, otherUserObjectId] }
-    });
-
-    if (!chat) {
-      // If no chat exists, count all messages from other user
-      const count = await Message.countDocuments({
-        sender: otherUserObjectId,
-        receiver: currentUserObjectId
-      });
-      return count;
-    }
-
-    // Find current user's lastRead
-    const currentUserParticipant = chat.participants.find(
-      p => p.user && p.user.toString() === currentUserObjectId.toString()
-    );
-
-    if (!currentUserParticipant || !currentUserParticipant.lastRead) {
-      // If no lastRead, count all messages from other user
-      const count = await Message.countDocuments({
-        sender: otherUserObjectId,
-        receiver: currentUserObjectId
-      });
-      return count;
-    }
-
-    // Count messages sent after lastRead
+    // Count unread messages from other user to current user
     const count = await Message.countDocuments({
-      sender: otherUserObjectId,
-      receiver: currentUserObjectId,
-      createdAt: { $gt: currentUserParticipant.lastRead }
+      sender: otherUserId,
+      receiver: currentUserId,
+      isRead: false
     });
 
     return count;

@@ -17,8 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { Camera, Loader2 } from "lucide-react"
 import type { User } from "@/lib/posts-api"
-import { apiRequest, getJwtToken } from "@/lib/api"
-import { getCurrentUser } from "@/lib/auth-api"
+import { apiRequest } from "@/lib/api"
 
 interface NewEditProfileDialogProps {
   open: boolean
@@ -82,84 +81,14 @@ export function NewEditProfileDialog({
     }
   }
 
-  const testAuthentication = async () => {
-    try {
-      console.log('🧪 Testing authentication...')
-      const currentUser = await getCurrentUser()
-      console.log('✅ Current user:', currentUser)
-
-      if (!currentUser || !currentUser._id) {
-        console.error('❌ No current user found')
-        return false
-      }
-
-      if (currentUser._id !== user._id) {
-        console.error('❌ User ID mismatch:', {
-          currentUserId: currentUser._id,
-          profileUserId: user._id
-        })
-        return false
-      }
-
-      console.log('✅ Auth test successful - user can edit this profile')
-      return true
-    } catch (error) {
-      console.error('❌ Auth test failed:', error)
-      return false
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-
-    // Test authentication first
-    const isAuthenticated = await testAuthentication()
-    if (!isAuthenticated) {
-      toast({
-        title: "Authentication Failed",
-        description: "Please log out and log back in, then try again.",
-        variant: "destructive",
-      })
-      setIsLoading(false)
-      return
-    }
 
     try {
       console.log('🔄 Updating profile...')
       console.log('📝 Form data:', formData)
       console.log('📷 Avatar file:', avatarFile)
-
-      // Check JWT token before making request
-      const token = getJwtToken()
-      console.log('🔐 JWT Token check:')
-      console.log('  Token exists:', !!token)
-      if (token) {
-        console.log('  Token length:', token.length)
-        console.log('  Token preview:', token.substring(0, 20) + '...')
-
-        // Try to decode token to check expiration
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]))
-          console.log('  Token user ID:', payload.userId || payload.id)
-          console.log('  Token expires:', new Date(payload.exp * 1000))
-          console.log('  Token expired:', Date.now() > payload.exp * 1000)
-          console.log('  Profile user ID:', user._id)
-
-          if (Date.now() > payload.exp * 1000) {
-            throw new Error('JWT token has expired. Please log in again.')
-          }
-
-          if (payload.userId !== user._id && payload.id !== user._id) {
-            throw new Error('JWT token user ID does not match profile user ID.')
-          }
-        } catch (decodeError) {
-          console.error('❌ Token decode error:', decodeError)
-          throw new Error('Invalid JWT token. Please log in again.')
-        }
-      } else {
-        throw new Error('No JWT token found. Please log in again.')
-      }
 
       // Create FormData for multipart upload
       const formDataToSend = new FormData()

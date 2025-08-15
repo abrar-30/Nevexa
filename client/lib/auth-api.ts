@@ -12,9 +12,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   const stopTimer = performanceMonitor.startTimer("getCurrentUser")
   
   try {
-    console.log("Attempting to fetch current user...")
     const response = await apiRequest<{ user: AuthUser }>("/users/me")
-    console.log("Successfully fetched current user:", response)
     stopTimer()
     return response.user || (response as any)
   } catch (error) {
@@ -24,13 +22,11 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     if (error instanceof ApiError) {
       // Handle authentication errors
       if (error.status === 401 || error.status === 403) {
-        console.log("User not authenticated")
         return null
       }
 
       // Handle network errors
       if (error.status === 0) {
-        console.log("Network error fetching current user")
         return null
       }
     }
@@ -108,7 +104,7 @@ export function logoutUser() {
 }
 
 // Debug function to check authentication status
-export function debugAuthStatus(): void {
+export function debugAuthStatus(): boolean {
   const token = getJwtToken()
   console.log('🔐 Auth Debug Status:')
   console.log('Token exists:', !!token)

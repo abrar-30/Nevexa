@@ -13,6 +13,7 @@ import { Search, Users, UserPlus, MessageCircle, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { apiRequest } from '@/lib/api';
+import { InstantAuthGuard } from "@/components/instant-auth-guard"
 
 interface User {
   _id: string
@@ -55,7 +56,7 @@ const fetchCurrentUser = async () => {
   return response.user || response;
 }
 
-export default function PeoplePage() {
+function PeoplePageContent() {
   const [searchTerm, setSearchTerm] = useState("")
   const [users, setUsers] = useState<User[]>([])
   const [suggestions, setSuggestions] = useState<User[]>([])
@@ -73,7 +74,12 @@ export default function PeoplePage() {
         const [user, suggestionsData] = await Promise.all([fetchCurrentUser(), getSuggestions()])
         setCurrentUser(user)
         setSuggestions(suggestionsData)
-      } catch (err) {
+      } catch (err: any) {
+        // Suppress 401 errors - auth guard will handle redirects
+        if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
+          return
+        }
+
         console.error("Failed to load initial data:", err)
         toast({
           title: "Error",
@@ -166,7 +172,12 @@ export default function PeoplePage() {
           description: `You are now following ${user.name}`,
         })
       }
-    } catch (err) {
+    } catch (err: any) {
+      // Suppress 401 errors - auth guard will handle redirects
+      if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
+        return
+      }
+
       toast({
         title: "Error",
         description: "Failed to update follow status. Please try again.",
@@ -378,5 +389,13 @@ export default function PeoplePage() {
 
       <MobileNavigationWrapper />
     </div>
+  )
+}
+
+export default function PeoplePage() {
+  return (
+    <InstantAuthGuard>
+      <PeoplePageContent />
+    </InstantAuthGuard>
   )
 }
