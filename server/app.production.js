@@ -149,6 +149,12 @@ const loadRoutes = () => {
     app.use('/api/comments', commentRoutes);
     console.log('✅ Comment routes loaded');
 
+    // Load AI routes
+    console.log('Loading AI routes...');
+    const aiRoutes = require('./routes/ai.route');
+    app.use('/api/ai', aiRoutes);
+    console.log('✅ AI routes loaded');
+
     console.log('🎉 All routes loaded successfully');
     return true;
   } catch (error) {

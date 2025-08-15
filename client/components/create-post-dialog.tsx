@@ -16,9 +16,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { ImageIcon, X } from "lucide-react"
+import { ImageIcon, X, Sparkles } from "lucide-react"
 import { createPost, type Post } from "@/lib/posts-api"
 import { ApiError } from "@/lib/api"
+import { useAISuggestions } from "@/hooks/use-ai-suggestions"
+import { AISuggestion } from "@/components/ai-suggestion"
 
 interface CreatePostDialogProps {
   open: boolean
@@ -32,6 +34,20 @@ export function CreatePostDialog({ open, onOpenChange, onPostCreated }: CreatePo
   const [preview, setPreview] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+
+  // AI suggestions hook
+  const {
+    isLoading: isAILoading,
+    currentSuggestion,
+    getSuggestion,
+    acceptSuggestion,
+    rejectSuggestion,
+    clearSuggestion,
+  } = useAISuggestions({
+    onSuggestionReceived: (suggestion) => {
+      console.log('AI suggestion received:', suggestion)
+    }
+  })
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -67,6 +83,26 @@ export function CreatePostDialog({ open, onOpenChange, onPostCreated }: CreatePo
   const removeFile = () => {
     setFile(null)
     setPreview(null)
+    // Clear AI suggestion when file is removed
+    clearSuggestion()
+  }
+
+  // Handle AI suggestion request
+  const handleAISuggestion = async () => {
+    await getSuggestion(content, file || undefined)
+  }
+
+  // Handle accepting AI suggestion
+  const handleAcceptSuggestion = () => {
+    const suggestion = acceptSuggestion()
+    if (suggestion) {
+      // If there's existing content, add the suggestion to it
+      if (content.trim()) {
+        setContent(suggestion)
+      } else {
+        setContent(suggestion)
+      }
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,6 +131,7 @@ export function CreatePostDialog({ open, onOpenChange, onPostCreated }: CreatePo
       setContent("")
       setFile(null)
       setPreview(null)
+      clearSuggestion()
 
       toast({
         title: "Post Created",
@@ -149,8 +186,31 @@ export function CreatePostDialog({ open, onOpenChange, onPostCreated }: CreatePo
               rows={4}
               maxLength={500}
             />
-            <div className="text-xs text-muted-foreground text-right">{content.length}/500</div>
+            <div className="flex items-center justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAISuggestion}
+                disabled={isLoading || isAILoading}
+                className="h-7 px-3 text-xs"
+              >
+                <Sparkles className="h-3 w-3 mr-1" />
+                AI Suggest
+              </Button>
+              <div className="text-xs text-muted-foreground">{content.length}/500</div>
+            </div>
           </div>
+
+          {/* AI Suggestion Display */}
+          {(isAILoading || currentSuggestion) && (
+            <AISuggestion
+              isLoading={isAILoading}
+              suggestion={currentSuggestion}
+              onAccept={handleAcceptSuggestion}
+              onReject={rejectSuggestion}
+            />
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="file">Add Photo/Video</Label>
