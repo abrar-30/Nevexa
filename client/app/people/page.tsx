@@ -222,7 +222,7 @@ function PeoplePageContent() {
                       disabled={loadingUserId === user._id}
                       onClick={async () => await handleFollow(user._id, !!user.isFollowing)}
                       className={user.isFollowing 
-                        ? "border-gray-300 text-gray-700 hover:bg-gray-50 bg-white" 
+                        ? "border-gray-300 text-gray-700 hover:bg-gray-50 bg-white dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700" 
                         : "bg-black text-white hover:bg-gray-800 border-black"
                       }
                     >
@@ -291,7 +291,7 @@ function PeoplePageContent() {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 pb-16 md:pb-0">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 pb-16 md:pb-0">
       <Navbar user={currentUser} />
 
       <div className="container max-w-4xl mx-auto py-6 px-4">
@@ -301,7 +301,7 @@ function PeoplePageContent() {
         </div>
 
         {/* Search Bar */}
-        <Card className="mb-6 border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+        <Card className="mb-6 border-0 shadow-lg bg-white/80 dark:bg-gray-900/60 dark:border-gray-800 backdrop-blur-sm">
           <CardContent className="p-4">
             <div className="flex space-x-2">
               <div className="relative flex-1">
@@ -321,7 +321,7 @@ function PeoplePageContent() {
         {/* Results */}
         <div className="space-y-6">
           {error && (
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+            <Card className="border-0 shadow-lg bg-white/80 dark:bg-gray-900/60 dark:border-gray-800 backdrop-blur-sm">
               <CardContent className="p-8 text-center">
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Users className="h-8 w-8 text-red-500" />
@@ -349,7 +349,7 @@ function PeoplePageContent() {
                   ))}
                 </>
               ) : (
-                <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+                <Card className="border-0 shadow-lg bg-white/80 dark:bg-gray-900/60 dark:border-gray-800 backdrop-blur-sm">
                   <CardContent className="p-8 text-center">
                     <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">No Users Found</h3>
@@ -373,7 +373,7 @@ function PeoplePageContent() {
 
           {/* Empty State */}
           {!isSearched && suggestions.length === 0 && !error && (
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+            <Card className="border-0 shadow-lg bg-white/80 dark:bg-gray-900/60 dark:border-gray-800 backdrop-blur-sm">
               <CardContent className="p-8 text-center">
                 <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Start Exploring</h3>

@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,19 +17,40 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+  const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      await loginUser(email, password)
+      console.log('Attempting login...')
+      const result = await loginUser(email, password)
+      console.log('Login result:', result)
+      
       toast({
         title: "Login Successful",
         description: "Welcome back to Nevexa!",
       })
-      window.location.href = "/dashboard"
+      
+      console.log('Redirecting to dashboard...')
+      
+      // Try router.push first, fallback to window.location if needed
+      try {
+        router.push("/dashboard")
+        // Fallback redirect after a short delay
+        setTimeout(() => {
+          if (window.location.pathname !== "/dashboard") {
+            console.log('Fallback redirect to dashboard...')
+            window.location.href = "/dashboard"
+          }
+        }, 1000)
+      } catch (redirectError) {
+        console.error('Router redirect failed, using window.location:', redirectError)
+        window.location.href = "/dashboard"
+      }
     } catch (err: any) {
+      console.error('Login error:', err)
       toast({
         title: "Login Failed",
         description: err.message || "Invalid credentials",
@@ -40,12 +62,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-white p-4">
       <div className="w-full max-w-md space-y-4">
         
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-blue-600">Nevexa</CardTitle>
+            <div className="flex justify-center mb-2">
+              <img 
+                src="/placeholder-logo.png" 
+                alt="Nevexa Logo" 
+                className="h-12 w-auto"
+              />
+            </div>
             <CardDescription>Sign in to your account</CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>

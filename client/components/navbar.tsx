@@ -13,8 +13,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { Home, Users, MessageCircle, User, LogOut, Settings, Shield } from "lucide-react"
+import { Home, Users, MessageCircle, User, LogOut, Settings, Shield, Sun, Moon } from "lucide-react"
 import { getCurrentUser, logoutUser } from "@/lib/auth-api";
+import { useTheme } from "next-themes";
 
 interface NavbarProps {
   userRole?: "general" | "admin"
@@ -29,6 +30,7 @@ interface NavbarProps {
 
 export function Navbar({ userRole = "general", unreadMessagesCount = 0, hideOnMobile = false }: NavbarProps) {
   const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<NavbarProps["user"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -72,7 +74,11 @@ export function Navbar({ userRole = "general", unreadMessagesCount = 0, hideOnMo
       <div className="container flex h-16 items-center justify-between px-4">
         <div className="flex items-center space-x-6">
           <Link href="/dashboard" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold text-blue-600">Nevexa</span>
+            <img 
+              src="/placeholder-logo.png" 
+              alt="Nevexa Logo" 
+              className="h-8 w-auto"
+            />
           </Link>
 
           <div className="hidden md:flex items-center space-x-1">
@@ -101,6 +107,15 @@ export function Navbar({ userRole = "general", unreadMessagesCount = 0, hideOnMo
               </Button>
             </Link>
           )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

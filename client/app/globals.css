@@ -49,38 +49,78 @@ body {
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
   .dark {
+    /* Material Design Dark Theme - Background & Surfaces */
+    --background: 0 0% 7%; /* #121212 - Material Design recommended dark surface */
+    --foreground: 0 0% 98%;
+    --card: 0 0% 11%; /* #1E1E1E - Elevated surface */
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 98%;
+    
+    /* Primary & Secondary Colors - Desaturated for better contrast */
+    --primary: 220 70% 60%; /* Desaturated blue */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 18%; /* #2D2D2D - Higher elevation */
+    --secondary-foreground: 0 0% 98%;
+    
+    /* Muted & Accent - Better contrast ratios */
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 70%; /* 70% white for better readability */
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 98%;
+    
+    /* Error & Destructive - Material Design dark theme error color */
+    --destructive: 0 70% 60%; /* #CF6679 equivalent */
+    --destructive-foreground: 0 0% 98%;
+    
+    /* Borders & Inputs - Subtle but visible */
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 220 70% 60%;
+    
+    /* Chart Colors - Desaturated for dark theme */
+    --chart-1: 220 70% 60%;
+    --chart-2: 160 60% 55%;
+    --chart-3: 30 80% 65%;
+    --chart-4: 280 65% 70%;
+    --chart-5: 340 75% 65%;
+    
+    /* Sidebar - Consistent with main theme */
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 220 70% 60%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 0 0% 18%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 220 70% 60%;
+  }
+
+  /* Custom theme styles */
+  .theme-custom {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --primary: var(--primary-color);
+    --primary-foreground: 0 0% 98%;
+    --accent: var(--primary-light);
+    --accent-foreground: 0 0% 9%;
+    --border: var(--primary-light);
+    --ring: var(--primary-color);
+  }
+
+  .theme-custom.dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
     --card: 0 0% 3.9%;
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
+    --primary: var(--primary-color);
     --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
+    --accent: var(--primary-light);
     --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: var(--primary-light);
+    --ring: var(--primary-color);
   }
 }
 

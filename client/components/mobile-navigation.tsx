@@ -47,7 +47,7 @@ export function MobileNavigation({ unreadMessagesCount = 0 }: MobileNavigationPr
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 md:hidden">
       <div className="flex items-center justify-around py-2">
         {navItems.map((item) => (
           <Link key={item.href} href={item.href} className="flex-1">
