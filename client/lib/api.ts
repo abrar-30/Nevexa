@@ -171,7 +171,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
       // Increase timeout for file uploads
       const isFileUpload = config.body instanceof FormData
-      const timeoutDuration = isFileUpload ? 30000 : 10000 // 30s for uploads, 5s for regular requests
+      const timeoutDuration = isFileUpload ? 30000 : 20000; // Increased timeout for regular requests to 20 seconds
 
       const timeoutId = setTimeout(() => {
         console.log(`⏰ Request timeout after ${timeoutDuration/1000} seconds for:`, url)
