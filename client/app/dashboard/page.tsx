@@ -17,6 +17,7 @@ import { getCurrentUser, debugAuthStatus, isAuthenticated, type AuthUser } from 
 import { InstantAuthGuard } from "@/components/instant-auth-guard"
 import { ApiError } from "@/lib/api"
 import { PostsList } from "@/components/posts-list";
+import { ThemeProvider, useTheme } from "../../context/ThemeContext";
 
 interface DashboardState {
   posts: Post[]
@@ -31,7 +32,8 @@ interface DashboardState {
 }
 
 function DashboardPageContent() {
-  const router = useRouter()
+  const router = useRouter();
+  const { theme } = useTheme();
   const [state, setState] = useState<DashboardState>({
     posts: [],
     currentUser: null,
@@ -354,15 +356,39 @@ function DashboardPageContent() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
-      <Navbar userRole={state.currentUser?.role || "general"} user={state.currentUser ? { name: state.currentUser.name, email: state.currentUser.email, avatar: state.currentUser.avatar } : undefined} />
+    <div
+      className={`min-h-screen pb-16 md:pb-0 ${
+        theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
+      }`}
+    >
+      <Navbar
+        userRole={state.currentUser?.role || "general"}
+        user={
+          state.currentUser
+            ? {
+                name: state.currentUser.name,
+                email: state.currentUser.email,
+                avatar: state.currentUser.avatar,
+              }
+            : undefined
+        }
+      />
 
       <div className="container max-w-2xl mx-auto py-6 px-4">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Home Feed</h1>
           <div className="flex space-x-2">
-            <Button variant="outline" size="sm" onClick={() => loadPosts(true)} disabled={state.isRefreshing}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${state.isRefreshing ? "animate-spin" : ""}`} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadPosts(true)}
+              disabled={state.isRefreshing}
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${
+                  state.isRefreshing ? "animate-spin" : ""
+                }`}
+              />
               Refresh
             </Button>
             <Button onClick={() => updateState({ showCreatePost: true })}>
@@ -373,23 +399,38 @@ function DashboardPageContent() {
         </div>
 
         {state.isOfflineMode && (
-          <Alert className="mb-6 border-blue-200 bg-blue-50">
+          <Alert
+            className={`mb-6 border-blue-200 ${
+              theme === "dark" ? "bg-blue-900 text-blue-100" : "bg-blue-50 text-blue-800"
+            }`}
+          >
             <Wifi className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-800">
+            <AlertDescription>
               Running in offline mode. Some features may be limited.
               {state.lastFetchTime && (
-                <span className="block text-sm mt-1">Last updated: {state.lastFetchTime.toLocaleTimeString()}</span>
+                <span className="block text-sm mt-1">
+                  Last updated: {state.lastFetchTime.toLocaleTimeString()}
+                </span>
               )}
             </AlertDescription>
           </Alert>
         )}
 
         {state.error && !state.isOfflineMode && (
-          <Alert className="mb-6 border-red-200 bg-red-50">
+          <Alert
+            className={`mb-6 border-red-200 ${
+              theme === "dark" ? "bg-red-900 text-red-100" : "bg-red-50 text-red-800"
+            }`}
+          >
             <AlertCircle className="h-4 w-4 text-red-600" />
             <AlertDescription className="flex items-center justify-between">
-              <span className="text-red-800">{state.error}</span>
-              <Button variant="outline" size="sm" onClick={handleRetry} className="ml-2 bg-transparent">
+              <span>{state.error}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRetry}
+                className="ml-2 bg-transparent"
+              >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Try Again
               </Button>
@@ -415,13 +456,15 @@ function DashboardPageContent() {
 
       <MobileNavigationWrapper />
     </div>
-  )
+  );
 }
 
 export default function DashboardPage() {
   return (
-    <InstantAuthGuard>
-      <DashboardPageContent />
-    </InstantAuthGuard>
-  )
+    <ThemeProvider>
+      <InstantAuthGuard>
+        <DashboardPageContent />
+      </InstantAuthGuard>
+    </ThemeProvider>
+  );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth-api"
+import { ThemeProvider } from "../context/ThemeContext";
 
 export default function HomePage() {
   const router = useRouter()

@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Home, Users, MessageCircle, User, LogOut, Settings, Shield, Sun, Moon } from "lucide-react"
 import { getCurrentUser, logoutUser } from "@/lib/auth-api";
-import { useTheme } from "next-themes";
+import { useTheme } from "../context/ThemeContext";
 
 interface NavbarProps {
   userRole?: "general" | "admin"
@@ -30,7 +30,7 @@ interface NavbarProps {
 
 export function Navbar({ userRole = "general", unreadMessagesCount = 0, hideOnMobile = false }: NavbarProps) {
   const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState<NavbarProps["user"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -111,7 +111,7 @@ export function Navbar({ userRole = "general", unreadMessagesCount = 0, hideOnMo
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            onClick={toggleTheme}
             aria-label="Toggle theme"
           >
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

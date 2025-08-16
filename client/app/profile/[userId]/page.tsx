@@ -21,6 +21,7 @@ import type { User as UserBase, Post } from "@/lib/posts-api";
 import { apiRequest } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth-api";
 import { useRouter } from "next/navigation";
+import { ThemeProvider } from "../../../context/ThemeContext";
 
 // Extend User type to include isFollowing
 interface User extends UserBase {
@@ -554,8 +555,10 @@ function UserProfilePageContent() {
 
 export default function UserProfilePage() {
   return (
-    <InstantAuthGuard>
-      <UserProfilePageContent />
-    </InstantAuthGuard>
-  )
+    <ThemeProvider>
+      <InstantAuthGuard>
+        <UserProfilePageContent />
+      </InstantAuthGuard>
+    </ThemeProvider>
+  );
 }

@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { apiRequest } from '@/lib/api';
 import { InstantAuthGuard } from "@/components/instant-auth-guard"
+import { ThemeProvider } from "../../context/ThemeContext";
 
 interface User {
   _id: string
@@ -394,8 +395,10 @@ function PeoplePageContent() {
 
 export default function PeoplePage() {
   return (
-    <InstantAuthGuard>
-      <PeoplePageContent />
-    </InstantAuthGuard>
-  )
+    <ThemeProvider>
+      <InstantAuthGuard>
+        <PeoplePageContent />
+      </InstantAuthGuard>
+    </ThemeProvider>
+  );
 }

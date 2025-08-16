@@ -15,6 +15,7 @@ import { io, Socket } from "socket.io-client";
 import { useSearchParams } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import { InstantAuthGuard } from "@/components/instant-auth-guard";
+import { ThemeProvider } from "../../context/ThemeContext";
 
 interface CurrentUser {
   _id: string;
@@ -30,6 +31,48 @@ interface Message {
   timestamp: string;
   read: boolean;
 }
+
+// Define the type for theme styles
+interface ThemeStyles {
+  background: string;
+  cardBackground: string;
+  hoverBackground: string;
+  primaryText: string;
+  secondaryText: string;
+  disabledText: string;
+  accentBlue: string;
+  accentPurple: string;
+  border: string;
+}
+
+// Updated light theme styles to match PeoplePage
+const lightThemeStyles: ThemeStyles = {
+  background: "#F9FAFB", // Matches the gradient light background
+  cardBackground: "#FFFFFF", // White background for cards
+  hoverBackground: "#F3F4F6", // Slightly darker for hover effects
+  primaryText: "#111827", // Dark text for readability
+  secondaryText: "#6B7280", // Muted text for descriptions
+  disabledText: "#D1D5DB", // Light gray for disabled elements
+  accentBlue: "#3B82F6", // Accent color for buttons and highlights
+  accentPurple: "#8B5CF6", // Secondary accent color
+  border: "#E5E7EB", // Light gray for borders
+};
+
+// Updated dark theme styles to match the new design
+const darkThemeStyles: ThemeStyles = {
+  background: "#121212", // Deep black-gray for primary background
+  cardBackground: "#1E1E1E", // Dark gray for cards and panels
+  hoverBackground: "#2C2C2C", // Slightly lighter gray for hover effects and inputs
+  primaryText: "#FFFFFF", // White text for primary content
+  secondaryText: "#B3B3B3", // Subtle gray for secondary text
+  disabledText: "#666666", // Muted gray for disabled elements
+  accentBlue: "#3B82F6", // Blue accent for highlights
+  accentPurple: "#8B5CF6", // Purple accent for highlights
+  border: "#2A2A2A", // Divider and stroke color
+};
+
+// Updated to use class toggling for dark mode without interfering with light mode
+const isDarkMode = false; // Replace with actual theme detection logic
 
 function MessagesPageContent() {
   // Core state
@@ -158,45 +201,34 @@ function MessagesPageContent() {
     loadConversations();
   }, [currentUser]);
 
-  // Search functionality with debounce
+  // Implemented search functionality for the search area
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
-    }
-
-    setSearchLoading(true);
-    
-    if (searchTimeout.current) {
-      clearTimeout(searchTimeout.current);
-    }
-
-    searchTimeout.current = setTimeout(async () => {
-      try {
-        const response = await searchUsers(searchQuery);
-        // Filter users whose names start with the search query (case-insensitive)
-        const filteredUsers = (response.users || []).filter(user => 
-          user.name.toLowerCase().startsWith(searchQuery.toLowerCase())
-        );
-        setSearchResults(filteredUsers);
-        setShowSearchResults(true);
-      } catch (error) {
-        console.error('Search failed:', error);
-        // Don't show error to user, just set empty results
+    const searchTimeout = setTimeout(() => {
+      if (searchQuery.trim()) {
+        handleSearch();
+      } else {
         setSearchResults([]);
-        setShowSearchResults(true); // Still show dropdown with "No users found"
-      } finally {
-        setSearchLoading(false);
+        setShowSearchResults(false);
       }
-    }, 300);
+    }, 300); // Debounce search by 300ms
 
-    return () => {
-      if (searchTimeout.current) {
-        clearTimeout(searchTimeout.current);
-      }
-    };
+    return () => clearTimeout(searchTimeout);
   }, [searchQuery]);
+
+  const handleSearch = async () => {
+    try {
+      setSearchLoading(true);
+      const results = await searchUsers(searchQuery); // Fetch users from API
+      setSearchResults(results.users || []); // Ensure results are correctly set
+      setShowSearchResults(true);
+    } catch (error) {
+      console.error("Search failed:", error);
+      setSearchResults([]); // Reset to an empty array on error
+      setShowSearchResults(true); // Show dropdown with "No users found"
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   // Close search results when clicking outside
   useEffect(() => {
@@ -348,7 +380,13 @@ function MessagesPageContent() {
     try {
       console.log('Selecting conversation:', conversation.user.name, 'Mobile:', isMobile);
       setSelectedConversation(conversation);
-      
+
+      // Scroll sidebar to the top
+      const sidebarElement = document.querySelector('.sidebar-class'); // Replace with actual sidebar class or ID
+      if (sidebarElement) {
+        sidebarElement.scrollTop = 0;
+      }
+
       // Mark conversation as read if there are unread messages
       if (conversation.unreadCount > 0) {
         const unreadAmount = conversation.unreadCount;
@@ -371,7 +409,7 @@ function MessagesPageContent() {
           }
         });
       }
-      
+
       if (isMobile) {
         console.log('Opening mobile chat');
         setMobileChatOpen(true);
@@ -527,7 +565,8 @@ function MessagesPageContent() {
       
       if (diffInHours < 24) {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      } else if (diffInHours < 168) { // 7 days
+      } else if (diffInHours < 168) // 7 days
+      {
         return date.toLocaleDateString([], { weekday: 'short' });
       } else {
         return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
@@ -570,40 +609,36 @@ function MessagesPageContent() {
     );
   }
 
+  // Updated layout for mobile view to hide chat area initially and show only text area after selecting a chat
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div
+      className={`min-h-screen flex flex-col overflow-hidden ${isDarkMode ? 'dark' : ''}`}
+    >
       <Navbar hideOnMobile={isMobile && mobileChatOpen} />
-      
-      <div className="flex-1 flex max-w-6xl mx-auto w-full">
+
+      <div className="flex-1 flex w-full overflow-hidden">
         {/* Sidebar - Conversations List */}
-        <div className={`${
-          isMobile ? (mobileChatOpen ? 'hidden' : 'flex') : 'flex'
-        } w-full md:w-1/3 bg-white border-r border-gray-200 flex-col`}>
-          
+        <div
+      className={`w-full md:w-1/3 flex-col bg-[#FFFFFF] dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#2A2A2A] ${isMobile && mobileChatOpen ? 'hidden' : 'flex'} h-screen`}
+    >
           {/* Search Header */}
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-[#E5E7EB] dark:border-[#2A2A2A]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#4B5563] dark:text-[#B3B3B3]"
+              />
               <Input
                 ref={searchInputRef}
                 type="text"
                 placeholder="Search users to chat..."
                 value={searchQuery}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSearchQuery(value);
-                  if (value.trim()) {
-                    setShowSearchResults(true);
-                  } else {
-                    setShowSearchResults(false);
-                  }
-                }}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => {
                   if (searchQuery.trim()) {
                     setShowSearchResults(true);
                   }
                 }}
-                className="pl-10 pr-10"
+                className="pl-10 pr-10 bg-[#F9FAFB] dark:bg-[#1E1E1E] text-[#111827] dark:text-[#FFFFFF] border-[#D1D5DB] dark:border-[#3A3A3A] placeholder-[#9CA3AF] dark:placeholder-[#666666]"
               />
               {searchQuery && (
                 <button
@@ -612,22 +647,22 @@ function MessagesPageContent() {
                     setShowSearchResults(false);
                     setSearchResults([]);
                   }}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#4B5563] dark:text-[#B3B3B3] hover:text-[#111827] dark:hover:text-[#FFFFFF]"
                 >
                   <X className="h-4 w-4" />
                 </button>
               )}
-              
+
               {/* Search Results Dropdown */}
               {showSearchResults && (
-                <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 z-50 max-h-60 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 bg-[#FFFFFF] dark:bg-[#1E1E1E] border border-[#E5E7EB] dark:border-[#2A2A2A] rounded-lg shadow-lg mt-1 z-50 max-h-60 overflow-y-auto">
                   {searchLoading ? (
                     <div className="p-4 text-center">
                       <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                      <span className="text-sm text-gray-500 mt-2">Searching...</span>
+                      <span className="text-sm text-[#4B5563] dark:text-[#B3B3B3] mt-2">Searching...</span>
                     </div>
                   ) : searchResults.length === 0 ? (
-                    <div className="p-4 text-center text-gray-500 text-sm">
+                    <div className="p-4 text-center text-[#4B5563] dark:text-[#B3B3B3] text-sm">
                       No users found
                     </div>
                   ) : (
@@ -637,42 +672,33 @@ function MessagesPageContent() {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          if (selectingUser !== user._id) {
-                            handleUserSelect(user);
-                          }
+                          handleUserSelect(user);
                         }}
-                        className={`p-3 border-b border-gray-100 last:border-b-0 transition-colors duration-150 ${
-                          selectingUser === user._id 
-                            ? 'bg-blue-50 cursor-wait' 
-                            : 'hover:bg-gray-50 cursor-pointer active:bg-gray-100'
-                        }`}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if ((e.key === 'Enter' || e.key === ' ') && selectingUser !== user._id) {
-                            e.preventDefault();
-                            handleUserSelect(user);
-                          }
-                        }}
+                        className="p-3 border-b border-[#E5E7EB] dark:border-[#2A2A2A] last:border-b-0 transition-colors duration-150 hover:bg-[#F3F4F6] dark:hover:bg-[#2C2C2C] cursor-pointer"
                       >
-                        <div className="flex items-center space-x-3 pointer-events-none">
+                        <div className="flex items-center space-x-3">
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={user.avatar} />
                             <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
-                            <p className="font-medium text-sm">{user.name}</p>
-                            <p className="text-xs text-gray-500">{user.email}</p>
+                            <p className="font-medium text-sm text-[#111827] dark:text-[#FFFFFF]">
+                              {user.name}
+                            </p>
+                            <p className="text-xs text-[#4B5563] dark:text-[#B3B3B3]">
+                              {user.email}
+                            </p>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            {selectingUser === user._id ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                            ) : (
-                              <span className="text-xs text-blue-600 font-medium">
-                                {conversations.find(c => c.user.id === user._id) ? 'Open Chat' : 'Start Chat'}
-                              </span>
-                            )}
-                          </div>
+                          <Button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleUserSelect(user);
+        }}
+        className="ml-auto text-sm bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+      >
+        Start Chat
+      </Button>
                         </div>
                       </div>
                     ))
@@ -682,218 +708,139 @@ function MessagesPageContent() {
             </div>
           </div>
 
-          {/* Conversations Header */}
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900">Recent Chats</h2>
-            <button
-              onClick={refreshConversations}
-              disabled={conversationsLoading}
-              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-              title="Refresh conversations"
-            >
-              <RefreshCw className={`h-4 w-4 text-gray-500 ${conversationsLoading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-
           {/* Conversations List */}
           <ScrollArea className="flex-1">
-            {conversationsLoading ? (
-              <div className="p-4 text-center">
-                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                <p className="text-sm text-gray-500 mt-2">Loading conversations...</p>
-              </div>
-            ) : conversationsError ? (
-              <div className="p-8 text-center">
-                <MessageCircle className="h-12 w-12 mx-auto mb-4 text-red-300" />
-                <h3 className="font-medium text-gray-900 mb-2">Failed to load conversations</h3>
-                <p className="text-sm text-gray-500 mb-4">{conversationsError}</p>
-                <button
-                  onClick={refreshConversations}
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                >
-                  Try again
-                </button>
-              </div>
-            ) : conversations.length === 0 ? (
-              <div className="p-8 text-center">
-                <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <h3 className="font-medium text-gray-900 mb-2">No conversations yet</h3>
-                <p className="text-sm text-gray-500 mb-4">Search for users above to start chatting</p>
-                <button
-                  onClick={refreshConversations}
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                >
-                  Refresh conversations
-                </button>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {conversations.map((conversation) => (
-                  <div
-                    key={conversation.id}
-                    onClick={() => handleConversationSelect(conversation)}
-                    className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                      selectedConversation?.id === conversation.id ? 'bg-blue-50 border-r-2 border-blue-500' : ''
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="relative">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={conversation.user.avatar} />
-                          <AvatarFallback>{conversation.user.name.charAt(0).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium text-sm truncate">
-                            {conversation.user.name}
-                          </p>
-                          <span className="text-xs text-gray-500">
-                            {formatTimestamp(conversation.lastMessage.timestamp)}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600 truncate">
-                          {conversation.lastMessage.content || "No messages yet"}
-                        </p>
-                      </div>
-                    </div>
+            {conversations.map((conversation) => (
+              <div
+                key={conversation.id}
+                onClick={(e) => {
+                  e.preventDefault(); // Prevent default browser behavior
+                  e.stopPropagation(); // Stop event propagation
+                  handleConversationSelect(conversation);
+                  if (isMobile) setMobileChatOpen(true);
+                }}
+                className={`p-4 cursor-pointer transition-colors bg-[#FFFFFF] dark:bg-[#1E1E1E] hover:bg-[#F3F4F6] dark:hover:bg-[#2C2C2C] text-[#111827] dark:text-[#FFFFFF]`}
+              >
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={conversation.user.avatar} />
+                    <AvatarFallback>{conversation.user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">
+                      {conversation.user.name}
+                    </p>
+                    <p className="text-xs text-[#4B5563] dark:text-[#B3B3B3] truncate">
+                      {conversation.lastMessage.content || "No messages yet"}
+                    </p>
                   </div>
-                ))}
+                </div>
               </div>
-            )}
+            ))}
           </ScrollArea>
         </div>
 
         {/* Chat Window */}
-        <div className={`${
-          isMobile ? (mobileChatOpen ? 'flex' : 'hidden') : 'flex'
-        } flex-1 flex-col bg-white ${isMobile ? 'h-screen' : 'h-[calc(100vh-60px)]'}`}>
-          
+        <div
+          className={`flex-1 flex flex-col bg-[#FFFFFF] dark:bg-[#1E1E1E] ${isMobile && !mobileChatOpen ? 'hidden' : 'flex'} h-[75vh] overflow-y-auto`}
+        >
           {selectedConversation ? (
             <>
               {/* Chat Header */}
-              <div className="p-4 border-b border-gray-200 flex items-center space-x-3 flex-shrink-0">
+              <div className="sticky top-0 z-10 p-4 border-b border-[#E5E7EB] dark:border-[#2A2A2A] bg-[#FFFFFF] dark:bg-[#1E1E1E] flex items-center space-x-3">
                 {isMobile && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      console.log('Closing mobile chat');
-                      setMobileChatOpen(false);
-                    }}
-                    className="mr-2"
+                  <button
+                    onClick={() => setMobileChatOpen(false)}
+                    className="mr-2 text-[#111827] dark:text-[#FFFFFF] hover:text-[#2563EB] dark:hover:text-[#2563EB]"
                   >
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
+                    <ArrowLeft className="h-5 w-5" />
+                  </button>
                 )}
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={selectedConversation.user.avatar} />
                   <AvatarFallback>{selectedConversation.user.name.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <div>
-                  <h3 className="font-medium">{selectedConversation.user.name}</h3>
-                  <p className="text-sm text-gray-500">Active now</p>
-                </div>
+                <h3 className="font-medium text-[#111827] dark:text-[#FFFFFF]">
+                  {selectedConversation.user.name}
+                </h3>
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4">
+              <div className="flex-1 overflow-y-auto p-4 mt-20 pb-10">
                 <div className="space-y-4">
-                  {selectedConversation.messages.length === 0 ? (
-                    <div className="text-center py-8">
-                      <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p className="text-gray-500">No messages yet. Start the conversation!</p>
-                    </div>
-                  ) : (
-                    selectedConversation.messages.map((message) => (
+                  {selectedConversation.messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${
+                        message.senderId === currentUser?._id ? "justify-end" : "justify-start"
+                      }`}
+                    >
                       <div
-                        key={message.id}
-                        className={`flex ${message.senderId === currentUser._id ? 'justify-end' : 'justify-start'}`}
+                        className={`max-w-[70%] p-3 rounded-lg ${
+                          message.senderId === currentUser?._id
+                            ? "bg-[#2563EB] text-white"
+                            : "bg-[#E5E7EB] text-[#111827]"
+                        }`}
                       >
-                        <div
-                          className={`max-w-[70%] p-3 rounded-lg ${
-                            message.senderId === currentUser._id
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-gray-100 text-gray-900'
-                          }`}
-                        >
-                          <p className="text-sm">{message.content}</p>
-                          <p
-                            className={`text-xs mt-1 ${
-                              message.senderId === currentUser._id ? 'text-blue-100' : 'text-gray-500'
-                            }`}
-                          >
-                            {formatTimestamp(message.timestamp)}
-                          </p>
-                        </div>
+                        <p className="text-sm">{message.content}</p>
+                        <p className="text-xs text-gray-400 mt-1 text-right">
+                          {formatTimestamp(message.timestamp)}
+                        </p>
                       </div>
-                    ))
-                  )}
+                    </div>
+                  ))}
                   <div ref={messagesEndRef} />
                 </div>
               </div>
 
-              {/* Message Input - Fixed at bottom for mobile */}
-              <div className={`border-t border-gray-200 flex-shrink-0 ${isMobile ? 'fixed bottom-0 left-0 right-0 bg-white' : 'p-4'}`}>
-                <div className={isMobile ? 'p-4' : ''}>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }}
-                    className="flex space-x-2"
-                  >
-                    <Input
-                      value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
-                      placeholder="Type a message..."
-                      className="flex-1"
-                      disabled={sending}
-                    />
-                    <Button type="submit" disabled={sending || !messageInput.trim()}>
-                      {sending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Send className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </form>
-                </div>
+              {/* Message Input - Stick to bottom */}
+              <div className="border-t border-[#E5E7EB] dark:border-[#2A2A2A] p-4 flex-shrink-0">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }}
+                  className="flex space-x-2"
+                >
+                  <Input
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    placeholder="Type a message..."
+                    className="flex-1 bg-[#F9FAFB] dark:bg-[#1E1E1E] text-[#111827] dark:text-[#FFFFFF] border-[#D1D5DB] dark:border-[#3A3A3A] placeholder-[#9CA3AF] dark:placeholder-[#666666]"
+                    disabled={sending}
+                  />
+                  <Button type="submit" disabled={sending || !messageInput.trim()}>
+                    {sending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </form>
               </div>
-              
-              {/* Spacer for mobile to prevent content from being hidden behind fixed input */}
-              {isMobile && (
-                <div className="h-20"></div>
-              )}
             </>
           ) : (
-            /* No conversation selected */
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <MessageCircle className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Select a conversation</h3>
-                <p className="text-gray-500">Choose a conversation from the sidebar to start messaging</p>
+                <h3 className="text-lg font-medium text-[#111827] dark:text-[#FFFFFF]">
+                  Select a conversation
+                </h3>
               </div>
             </div>
           )}
         </div>
       </div>
-
-      {!isMobile || !mobileChatOpen ? (
-        <MobileNavigationWrapper />
-      ) : (
-        <div className="md:hidden">
-          {/* Mobile navigation is hidden when chat is open */}
-        </div>
-      )}
+      <MobileNavigationWrapper />
     </div>
   );
 }
 
 export default function MessagesPage() {
   return (
-    <InstantAuthGuard>
-      <MessagesPageContent />
-    </InstantAuthGuard>
-  )
+    <ThemeProvider>
+      <InstantAuthGuard>
+        <MessagesPageContent />
+      </InstantAuthGuard>
+    </ThemeProvider>
+  );
 }
