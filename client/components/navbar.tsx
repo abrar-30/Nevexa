@@ -77,8 +77,9 @@ export function Navbar({ userRole = "general", unreadMessagesCount = 0, hideOnMo
             <img 
               src="/placeholder-logo.png" 
               alt="Nevexa Logo" 
-              className="h-8 w-auto"
+              className="h-8 w-8 rounded-full"
             />
+
           </Link>
 
           <div className="hidden md:flex items-center space-x-1">
